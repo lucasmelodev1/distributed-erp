@@ -12,6 +12,20 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:localhost}
+      password: ${SPRING_REDIS_PASSWORD:password}
+      port: ${SPRING_REDIS_PORT:6379}
+  session:
+    data:
+      redis:
+        flush-mode: on_save
+        namespace: spring:session
+server:
+  servlet:
+    session:
+      timeout: 5s
 management:
   tracing:
     sampling:

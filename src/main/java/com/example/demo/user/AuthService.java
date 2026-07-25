@@ -8,6 +8,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -137,6 +139,7 @@ public class AuthService {
 	public LoginResponse login(LoginRequest dto) throws BadCredentialsException {
 		Authentication auth = authenticationManager
 				.authenticate(new UsernamePasswordAuthenticationToken(dto.email(), dto.password()));
+		SecurityContextHolder.getContext().setAuthentication(auth);
 		User user = (User) auth.getPrincipal();
 		log.info("User " + user.getId() + " logged in");
 		return new LoginResponse(user.getId(), user.getEmail(), user.getRole());

@@ -10,10 +10,23 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 3s
       retries: 5
+  redis:
+    image: redis:8.6.5-alpine
+    command: redis-server --requirepass password --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
   grafana:
     image: grafana/otel-lgtm:latest
@@ -30,12 +43,17 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/demo
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PASSWORD: password
       OTEL_EXPORTER_OTLP_ENDPOINT: http://grafana:4318
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       grafana:
         condition: service_started
 
 volumes:
+  redis_data:
   pgdata:
