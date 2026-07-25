@@ -3,11 +3,13 @@ package com.example.demo.user;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 import com.example.demo.user.dto.CreateUserRequest;
+import com.example.demo.user.dto.FindMeResponse;
 import com.example.demo.user.dto.LoginRequest;
 import com.example.demo.user.dto.LoginResponse;
 import com.example.demo.user.dto.RequestEmailVerificationRequest;
@@ -20,11 +22,15 @@ import com.example.demo.user.dto.VerifyPasswordResetRequestRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -36,10 +42,18 @@ public class AuthController {
 		this.authService = authService;
 	}
 
+	@GetMapping("/me")
+	public FindMeResponse findMe(@AuthenticationPrincipal User user) {
+		return authService.findMe(user);
+	}
+
 	@PostMapping("/login")
 	@Operation(summary = "Login", description = "Authenticate a user and return a cookie with the session id")
-	public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest dto) {
-		return ResponseEntity.ok(authService.login(dto));
+	public ResponseEntity<LoginResponse> login(
+			@Valid @RequestBody LoginRequest dto,
+			HttpServletRequest request,
+			HttpServletResponse response) {
+		return ResponseEntity.ok(authService.login(dto, request, response));
 	}
 
 	@PostMapping("/register-email-verification")

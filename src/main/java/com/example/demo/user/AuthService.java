@@ -10,11 +10,15 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.user.dto.CreateUserRequest;
+import com.example.demo.user.dto.FindMeResponse;
 import com.example.demo.user.dto.LoginRequest;
 import com.example.demo.user.dto.LoginResponse;
 import com.example.demo.user.dto.RequestEmailVerificationRequest;
@@ -27,6 +31,8 @@ import com.example.demo.utils.EnvUtils;
 import com.example.demo.utils.TokenUtils;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Service
 @Transactional
@@ -38,6 +44,9 @@ public class AuthService {
 	private UserRepository userRepository;
 	private AuthTokenRepository authTokenRepository;
 	private AuthenticationManager authenticationManager;
+	private final SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
+			.getContextHolderStrategy();
+	private SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
 
 	public AuthService(EnvUtils envUtils, PasswordEncoder passwordEncoder, UserRepository userRepository,
 			AuthTokenRepository authTokenRepository, AuthenticationManager authenticationManager) {
@@ -136,12 +145,20 @@ public class AuthService {
 		userRepository.save(user);
 	}
 
-	public LoginResponse login(LoginRequest dto) throws BadCredentialsException {
+	public LoginResponse login(LoginRequest dto, HttpServletRequest request, HttpServletResponse response)
+			throws BadCredentialsException {
 		Authentication auth = authenticationManager
 				.authenticate(new UsernamePasswordAuthenticationToken(dto.email(), dto.password()));
-		SecurityContextHolder.getContext().setAuthentication(auth);
+		SecurityContext context = securityContextHolderStrategy.createEmptyContext();
+		context.setAuthentication(auth);
+		securityContextHolderStrategy.setContext(context);
+		securityContextRepository.saveContext(context, request, response);
 		User user = (User) auth.getPrincipal();
 		log.info("User " + user.getId() + " logged in");
 		return new LoginResponse(user.getId(), user.getEmail(), user.getRole());
+	}
+
+	public FindMeResponse findMe(User user) {
+		return new FindMeResponse(user.getId(), user.getName(), user.getEmail(), user.getProfileIconUrl());
 	}
 }

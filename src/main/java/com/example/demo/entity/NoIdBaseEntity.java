@@ -1,5 +1,6 @@
 package com.example.demo.entity;
 
+import java.io.Serializable;
 import java.time.Instant;
 
 import org.springframework.data.annotation.CreatedDate;
@@ -9,7 +10,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
 
 @MappedSuperclass
-public abstract class NoIdBaseEntity {
+public abstract class NoIdBaseEntity implements Serializable {
 
 	@CreatedDate
 	@Column(name = "created_at")
