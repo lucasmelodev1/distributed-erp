@@ -20,18 +20,18 @@ import jakarta.servlet.http.HttpServletResponse;
 @Order(Ordered.LOWEST_PRECEDENCE)
 class MdcFilter extends OncePerRequestFilter {
 
-  @Override
-  protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-      FilterChain filterChain) throws ServletException, IOException {
-    try {
-      var auth = SecurityContextHolder.getContext().getAuthentication();
-      if (auth != null && auth.getPrincipal() instanceof User user) {
-        MDC.put("userId", user.getId().toString());
-        // MDC.put("tenantId", user.getTenantId().toString());
-      }
-      filterChain.doFilter(request, response);
-    } finally {
-      MDC.clear();
-    }
-  }
+	@Override
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+			FilterChain filterChain) throws ServletException, IOException {
+		try {
+			var auth = SecurityContextHolder.getContext().getAuthentication();
+			if (auth != null && auth.getPrincipal() instanceof User user) {
+				MDC.put("userId", user.getId().toString());
+				// MDC.put("tenantId", user.getTenantId().toString());
+			}
+			filterChain.doFilter(request, response);
+		} finally {
+			MDC.clear();
+		}
+	}
 }

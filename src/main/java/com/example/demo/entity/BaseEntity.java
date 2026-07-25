@@ -10,11 +10,11 @@ import jakarta.persistence.MappedSuperclass;
 @MappedSuperclass
 public abstract class BaseEntity extends NoIdBaseEntity {
 
-  @Id
-  @UuidV7Id
-  private UUID id;
+	@Id
+	@UuidV7Id
+	private UUID id;
 
-  public UUID getId() {
-    return id;
-  }
+	public UUID getId() {
+		return id;
+	}
 }

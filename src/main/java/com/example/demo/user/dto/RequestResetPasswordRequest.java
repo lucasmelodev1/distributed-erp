@@ -5,5 +5,5 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public record RequestResetPasswordRequest(
-    @Schema(description = "Email address", example = "demo@example.com")
-    @Email @NotBlank String email) {}
+		@Schema(description = "Email address", example = "demo@example.com")
+		@Email @NotBlank String email) {}

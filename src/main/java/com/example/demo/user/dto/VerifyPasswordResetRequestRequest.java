@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record VerifyPasswordResetRequestRequest(
-    @Schema(description = "Password Reset Request Token", example = "123456")
-    @Size(min = AuthToken.TOKEN_SIZE, max = AuthToken.TOKEN_SIZE, message = "Token with invalid size")
-    @NotBlank
-    String token) {}
+		@Schema(description = "Password Reset Request Token", example = "123456")
+		@Size(min = AuthToken.TOKEN_SIZE, max = AuthToken.TOKEN_SIZE, message = "Token with invalid size")
+		@NotBlank
+		String token) {}

@@ -12,9 +12,9 @@ import org.springframework.core.task.support.ContextPropagatingTaskDecorator;
 @Configuration(proxyBeanMethods = false)
 public class ContextPropagationConfiguration {
 
-    @Bean
-    ContextPropagatingTaskDecorator contextPropagatingTaskDecorator() {
-        return new ContextPropagatingTaskDecorator();
-    }
+		@Bean
+		ContextPropagatingTaskDecorator contextPropagatingTaskDecorator() {
+				return new ContextPropagatingTaskDecorator();
+		}
 
 }

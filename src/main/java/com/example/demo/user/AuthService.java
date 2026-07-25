@@ -2,11 +2,8 @@ package com.example.demo.user;
 
 import java.time.Instant;
 
-import javax.security.auth.login.CredentialNotFoundException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -27,122 +24,121 @@ import com.example.demo.user.dto.VerifyPasswordResetRequestRequest;
 import com.example.demo.utils.EnvUtils;
 import com.example.demo.utils.TokenUtils;
 
-import io.micrometer.observation.annotation.Observed;
 import jakarta.persistence.EntityNotFoundException;
 
 @Service
 @Transactional
 public class AuthService {
-  private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+	private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
-  @Autowired
-  private EnvUtils envUtils;
+	private EnvUtils envUtils;
+	private PasswordEncoder passwordEncoder;
+	private UserRepository userRepository;
+	private AuthTokenRepository authTokenRepository;
+	private AuthenticationManager authenticationManager;
 
-  @Autowired
-  private PasswordEncoder passwordEncoder;
+	public AuthService(EnvUtils envUtils, PasswordEncoder passwordEncoder, UserRepository userRepository,
+			AuthTokenRepository authTokenRepository, AuthenticationManager authenticationManager) {
+		this.envUtils = envUtils;
+		this.passwordEncoder = passwordEncoder;
+		this.userRepository = userRepository;
+		this.authTokenRepository = authTokenRepository;
+		this.authenticationManager = authenticationManager;
+	}
 
-  @Autowired
-  private UserRepository userRepository;
+	private String generateAndSaveToken(String email, AuthTokenType type) {
+		var token = TokenUtils.generateNumeric(AuthToken.TOKEN_SIZE);
+		var tokenHash = TokenUtils.hash(token);
 
-  @Autowired
-  private AuthTokenRepository authTokenRepository;
+		AuthToken req = new AuthToken(email, tokenHash, type);
+		authTokenRepository.save(req);
 
-  @Autowired
-  private AuthenticationManager authenticationManager;
+		return token;
+	}
 
-  private String generateAndSaveToken(String email, AuthTokenType type) {
-    var token = TokenUtils.generateNumeric(AuthToken.TOKEN_SIZE);
-    var tokenHash = TokenUtils.hash(token);
+	private AuthToken consumeToken(String token, AuthTokenType type) {
+		var notFoundException = new EntityNotFoundException("Token not found");
 
-    AuthToken req = new AuthToken(email, tokenHash, type);
-    authTokenRepository.save(req);
+		var foundToken = authTokenRepository
+				.findByTokenHashAndType(TokenUtils.hash(token), type)
+				.orElseThrow(() -> notFoundException);
 
-    return token;
-  }
+		if (!foundToken.isValid()) {
+			log.warn("Token is invalid");
+			throw notFoundException;
+		}
 
-  private AuthToken consumeToken(String token, AuthTokenType type) {
-    var notFoundException = new EntityNotFoundException("Token not found");
+		foundToken.consume();
+		authTokenRepository.save(foundToken);
+		log.info(type.toString() + " token consumed");
 
-    var foundToken = authTokenRepository
-        .findByTokenHashAndType(TokenUtils.hash(token), type)
-        .orElseThrow(() -> notFoundException);
+		return foundToken;
+	}
 
-    if (!foundToken.isValid()) {
-      log.warn("Token is invalid");
-      throw notFoundException;
-    }
+	private void logTokenInDev(String label, String token) {
+		// TODO: send email
+		if (envUtils.isDevEnvironment()) {
+			System.out.println(label + ": " + token);
+		}
+		log.info(label + " sent to email");
+	}
 
-    foundToken.consume();
-    authTokenRepository.save(foundToken);
-    log.info(type.toString() + " token consumed");
+	public void requestEmailVerification(RequestEmailVerificationRequest dto) {
+		var type = AuthTokenType.EMAIL_VERIFICATION;
+		authTokenRepository.revokeActiveByEmailAndType(dto.email(), type, Instant.now());
 
-    return foundToken;
-  }
+		var token = generateAndSaveToken(dto.email(), type);
+		logTokenInDev("Email Verification Token", token);
+	}
 
-  private void logTokenInDev(String label, String token) {
-    // TODO: send email
-    if (envUtils.isDevEnvironment()) {
-      System.out.println(label + ": " + token);
-    }
-    log.info(label + " sent to email");
-  }
+	public VerifyEmailResponse verifyEmail(VerifyEmailRequest dto) throws EntityNotFoundException {
+		var oldToken = consumeToken(dto.token(), AuthTokenType.EMAIL_VERIFICATION);
+		var newToken = generateAndSaveToken(oldToken.getEmail(), AuthTokenType.USER_CREATION);
+		return new VerifyEmailResponse(newToken);
+	}
 
-  public void requestEmailVerification(RequestEmailVerificationRequest dto) {
-    var type = AuthTokenType.EMAIL_VERIFICATION;
-    authTokenRepository.revokeActiveByEmailAndType(dto.email(), type, Instant.now());
+	public void createUser(CreateUserRequest dto) throws EntityNotFoundException {
+		var token = consumeToken(dto.token(), AuthTokenType.USER_CREATION);
 
-    var token = generateAndSaveToken(dto.email(), type);
-    logTokenInDev("Email Verification Token", token);
-  }
+		var passwordHash = passwordEncoder.encode(dto.password());
+		var user = new User(dto.name(), token.getEmail(), passwordHash);
+		userRepository.save(user);
+	}
 
-  public VerifyEmailResponse verifyEmail(VerifyEmailRequest dto) throws EntityNotFoundException {
-    var oldToken = consumeToken(dto.token(), AuthTokenType.EMAIL_VERIFICATION);
-    var newToken = generateAndSaveToken(oldToken.getEmail(), AuthTokenType.USER_CREATION);
-    return new VerifyEmailResponse(newToken);
-  }
+	public void requestResetPassword(RequestResetPasswordRequest dto) {
+		var user = userRepository.findByEmail(dto.email());
 
-  public void createUser(CreateUserRequest dto) throws EntityNotFoundException {
-    var token = consumeToken(dto.token(), AuthTokenType.USER_CREATION);
+		if (user.isPresent()) {
+			var type = AuthTokenType.PASSWORD_RESET_REQUEST;
+			authTokenRepository.revokeActiveByEmailAndType(dto.email(), type, Instant.now());
 
-    var passwordHash = passwordEncoder.encode(dto.password());
-    var user = new User(dto.name(), token.getEmail(), passwordHash);
-    userRepository.save(user);
-  }
+			var token = generateAndSaveToken(dto.email(), type);
+			logTokenInDev("Reset Password Token", token);
+		}
+	}
 
-  public void requestResetPassword(RequestResetPasswordRequest dto) {
-    var user = userRepository.findByEmail(dto.email());
+	public String verifyPasswordResetToken(VerifyPasswordResetRequestRequest dto) throws EntityNotFoundException {
+		var token = consumeToken(dto.token(), AuthTokenType.PASSWORD_RESET_REQUEST);
+		return generateAndSaveToken(token.getEmail(), AuthTokenType.PASSWORD_RESET);
+	}
 
-    if (user.isPresent()) {
-      var type = AuthTokenType.PASSWORD_RESET_REQUEST;
-      authTokenRepository.revokeActiveByEmailAndType(dto.email(), type, Instant.now());
+	public void resetPassword(ResetPasswordRequest dto) throws EntityNotFoundException {
+		consumeToken(dto.token(), AuthTokenType.PASSWORD_RESET);
 
-      var token = generateAndSaveToken(dto.email(), type);
-      logTokenInDev("Reset Password Token", token);
-    }
-  }
+		var passwordHash = passwordEncoder.encode(dto.password());
+		var user = userRepository
+				.findByEmail(dto.email())
+				.orElseThrow(() -> new EntityNotFoundException("Error resetting password"));
 
-  public String verifyPasswordResetToken(VerifyPasswordResetRequestRequest dto) throws EntityNotFoundException {
-    var token = consumeToken(dto.token(), AuthTokenType.PASSWORD_RESET_REQUEST);
-    return generateAndSaveToken(token.getEmail(), AuthTokenType.PASSWORD_RESET);
-  }
+		user.setPassword(passwordHash);
+		userRepository.save(user);
+	}
 
-  public void resetPassword(ResetPasswordRequest dto) throws EntityNotFoundException {
-    consumeToken(dto.token(), AuthTokenType.PASSWORD_RESET);
-
-    var passwordHash = passwordEncoder.encode(dto.password());
-    var user = userRepository
-        .findByEmail(dto.email())
-        .orElseThrow(() -> new EntityNotFoundException("Error resetting password"));
-
-    user.setPassword(passwordHash);
-    userRepository.save(user);
-  }
-
-  public LoginResponse login(LoginRequest dto) throws BadCredentialsException {
-    Authentication auth = authenticationManager
-        .authenticate(new UsernamePasswordAuthenticationToken(dto.email(), dto.password()));
-    User user = (User) auth.getPrincipal();
-    log.info("User " + user.getId() + " logged in");
-    return new LoginResponse(user.getId(), user.getEmail(), user.getRole());
-  }
+	public LoginResponse login(LoginRequest dto) throws BadCredentialsException {
+		Authentication auth = authenticationManager
+				.authenticate(new UsernamePasswordAuthenticationToken(dto.email(), dto.password()));
+		User user = (User) auth.getPrincipal();
+		log.info("User " + user.getId() + " logged in");
+		return new LoginResponse(user.getId(), user.getEmail(), user.getRole());
+	}
 }

@@ -18,29 +18,29 @@ import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 @Configuration(proxyBeanMethods = false)
 public class OpenTelemetryConfiguration {
 
-  @Bean
-  OpenTelemetryJvmCpuMeterConventions openTelemetryJvmCpuMeterConventions() {
-    return new OpenTelemetryJvmCpuMeterConventions(Tags.empty());
-  }
+	@Bean
+	OpenTelemetryJvmCpuMeterConventions openTelemetryJvmCpuMeterConventions() {
+		return new OpenTelemetryJvmCpuMeterConventions(Tags.empty());
+	}
 
-  @Bean
-  ProcessorMetrics processorMetrics() {
-    return new ProcessorMetrics(List.of(), new OpenTelemetryJvmCpuMeterConventions(Tags.empty()));
-  }
+	@Bean
+	ProcessorMetrics processorMetrics() {
+		return new ProcessorMetrics(List.of(), new OpenTelemetryJvmCpuMeterConventions(Tags.empty()));
+	}
 
-  @Bean
-  JvmMemoryMetrics jvmMemoryMetrics() {
-    return new JvmMemoryMetrics(List.of(), new OpenTelemetryJvmMemoryMeterConventions(Tags.empty()));
-  }
+	@Bean
+	JvmMemoryMetrics jvmMemoryMetrics() {
+		return new JvmMemoryMetrics(List.of(), new OpenTelemetryJvmMemoryMeterConventions(Tags.empty()));
+	}
 
-  @Bean
-  JvmThreadMetrics jvmThreadMetrics() {
-    return new JvmThreadMetrics(List.of(), new OpenTelemetryJvmThreadMeterConventions(Tags.empty()));
-  }
+	@Bean
+	JvmThreadMetrics jvmThreadMetrics() {
+		return new JvmThreadMetrics(List.of(), new OpenTelemetryJvmThreadMeterConventions(Tags.empty()));
+	}
 
-  @Bean
-  ClassLoaderMetrics classLoaderMetrics() {
-    return new ClassLoaderMetrics(new OpenTelemetryJvmClassLoadingMeterConventions());
-  }
+	@Bean
+	ClassLoaderMetrics classLoaderMetrics() {
+		return new ClassLoaderMetrics(new OpenTelemetryJvmClassLoadingMeterConventions());
+	}
 
 }

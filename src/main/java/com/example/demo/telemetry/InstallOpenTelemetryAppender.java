@@ -9,15 +9,15 @@ import io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppen
 @Component
 class InstallOpenTelemetryAppender implements InitializingBean {
 
-  private final OpenTelemetry openTelemetry;
+	private final OpenTelemetry openTelemetry;
 
-  InstallOpenTelemetryAppender(OpenTelemetry openTelemetry) {
-    this.openTelemetry = openTelemetry;
-  }
+	InstallOpenTelemetryAppender(OpenTelemetry openTelemetry) {
+		this.openTelemetry = openTelemetry;
+	}
 
-  @Override
-  public void afterPropertiesSet() {
-    OpenTelemetryAppender.install(this.openTelemetry);
-  }
+	@Override
+	public void afterPropertiesSet() {
+		OpenTelemetryAppender.install(this.openTelemetry);
+	}
 
 }

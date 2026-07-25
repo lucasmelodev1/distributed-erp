@@ -11,14 +11,14 @@ import io.micrometer.tracing.Tracer;
 @Configuration(proxyBeanMethods = false)
 public class FilterConfiguration {
 
-    @Bean
-    HeaderLoggerFilter headerLoggerFilter() {
-        return new HeaderLoggerFilter();
-    }
+		@Bean
+		HeaderLoggerFilter headerLoggerFilter() {
+				return new HeaderLoggerFilter();
+		}
 
-    @Bean
-    TraceIdFilter addTraceIdFilter(Tracer tracer) {
-        return new TraceIdFilter(tracer);
-    }
+		@Bean
+		TraceIdFilter addTraceIdFilter(Tracer tracer) {
+				return new TraceIdFilter(tracer);
+		}
 
 }

@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public record LoginRequest(
-    @Schema(description = "Email address", example = "demo@example.com")
-    @Email @NotBlank String email,
-    @Schema(description = "Password", example = "Password@123")
-    @NotBlank String password) {}
+		@Schema(description = "Email address", example = "demo@example.com")
+		@Email @NotBlank String email,
+		@Schema(description = "Password", example = "Password@123")
+		@NotBlank String password) {}

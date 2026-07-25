@@ -12,22 +12,22 @@ import jakarta.persistence.Table;
 @Table(name = "tenants")
 @SoftDelete(strategy = SoftDeleteType.TIMESTAMP, columnName = "deleted_at")
 public class Tenant extends BaseEntity {
-  public static final int MAX_NAME_SIZE = 255;
+	public static final int MAX_NAME_SIZE = 255;
 
-  private String name;
+	private String name;
 
-  public Tenant(String name) {
-    this.name = name;
-  }
+	public Tenant(String name) {
+		this.name = name;
+	}
 
-  public Tenant() {
-  }
+	public Tenant() {
+	}
 
-  public String getName() {
-    return name;
-  }
+	public String getName() {
+		return name;
+	}
 
-  public void setName(String name) {
-    this.name = name;
-  }
+	public void setName(String name) {
+		this.name = name;
+	}
 }

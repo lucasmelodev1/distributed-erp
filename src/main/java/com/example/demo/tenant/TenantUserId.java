@@ -8,6 +8,6 @@ import jakarta.persistence.Embeddable;
 
 @Embeddable
 public record TenantUserId(
-    @Column(name = "tenant_id") UUID tenantId,
-    @Column(name = "user_id") UUID userId
+		@Column(name = "tenant_id") UUID tenantId,
+		@Column(name = "user_id") UUID userId
 ) implements Serializable {}

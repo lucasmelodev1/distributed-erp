@@ -13,17 +13,17 @@ import jakarta.persistence.Table;
 @Table(name = "tenant_users")
 @SoftDelete(strategy = SoftDeleteType.TIMESTAMP, columnName = "deleted_at")
 public class TenantUser extends NoIdBaseEntity {
-  @EmbeddedId
-  private TenantUserId id;
+	@EmbeddedId
+	private TenantUserId id;
 
-  public TenantUser(TenantUserId id) {
-    this.id = id;
-  }
+	public TenantUser(TenantUserId id) {
+		this.id = id;
+	}
 
-  public TenantUser() {
-  }
+	public TenantUser() {
+	}
 
-  public TenantUserId getId() {
-    return id;
-  }
+	public TenantUserId getId() {
+		return id;
+	}
 }

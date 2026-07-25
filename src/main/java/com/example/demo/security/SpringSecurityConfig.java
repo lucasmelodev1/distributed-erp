@@ -1,7 +1,5 @@
 package com.example.demo.security;
 
-import java.io.IOException;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -23,48 +21,48 @@ import jakarta.servlet.http.HttpServletResponse;
 @EnableWebSecurity
 public class SpringSecurityConfig {
 
-  @Bean
-  public PasswordEncoder passwordEncoder() {
-    return PasswordEncoderFactories.createDelegatingPasswordEncoder();
-  }
+	@Bean
+	public PasswordEncoder passwordEncoder() {
+		return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+	}
 
-  @Bean
-  public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-    return config.getAuthenticationManager();
-  }
+	@Bean
+	public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+		return config.getAuthenticationManager();
+	}
 
-  @Bean
-  public AuthenticationEntryPoint authenticationEntryPoint() {
-    return (HttpServletRequest request, HttpServletResponse response,
-        org.springframework.security.core.AuthenticationException authException) -> {
-      response.setStatus(HttpStatus.UNAUTHORIZED.value());
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-      response.getWriter().write("{\"error\":\"" + authException.getMessage() + "\"}");
-    };
-  }
+	@Bean
+	public AuthenticationEntryPoint authenticationEntryPoint() {
+		return (HttpServletRequest request, HttpServletResponse response,
+				org.springframework.security.core.AuthenticationException authException) -> {
+			response.setStatus(HttpStatus.UNAUTHORIZED.value());
+			response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+			response.getWriter().write("{\"error\":\"" + authException.getMessage() + "\"}");
+		};
+	}
 
-  @Bean
-  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    return http
-        .csrf(csrf -> csrf.disable())
-        .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint()))
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/api/v1/auth/**").permitAll()
-            .anyRequest().authenticated())
-        .build();
-  }
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+		return http
+				.csrf(csrf -> csrf.disable())
+				.exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint()))
+				.authorizeHttpRequests(auth -> auth
+						.requestMatchers("/api/v1/auth/**").permitAll()
+						.anyRequest().authenticated())
+				.build();
+	}
 
-  @Configuration
-  @Profile("dev")
-  @EnableWebSecurity
-  static class DevSecurityConfig {
+	@Configuration
+	@Profile("dev")
+	@EnableWebSecurity
+	static class DevSecurityConfig {
 
-    @Bean
-    SecurityFilterChain devSecurityFilterChain(HttpSecurity http) throws Exception {
-      return http
-          .securityMatcher("/v3/api-docs/**", "/swagger-ui/**", "/scalar/**")
-          .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-          .build();
-    }
-  }
+		@Bean
+		SecurityFilterChain devSecurityFilterChain(HttpSecurity http) throws Exception {
+			return http
+					.securityMatcher("/v3/api-docs/**", "/swagger-ui/**", "/scalar/**")
+					.authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+					.build();
+		}
+	}
 }

@@ -19,18 +19,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Transactional
 public abstract class BaseIntegrationTest {
 
-  @Autowired
-  protected MockMvc mockMvc;
+	@Autowired
+	protected MockMvc mockMvc;
 
-  protected final ObjectMapper objectMapper = new ObjectMapper();
+	protected final ObjectMapper objectMapper = new ObjectMapper();
 
-  protected String toJson(Object dto) throws Exception {
-    return objectMapper.writeValueAsString(dto);
-  }
+	protected String toJson(Object dto) throws Exception {
+		return objectMapper.writeValueAsString(dto);
+	}
 
-  protected ResultActions performPost(String url, Object body) throws Exception {
-    return mockMvc.perform(post(url)
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(toJson(body)));
-  }
+	protected ResultActions performPost(String url, Object body) throws Exception {
+		return mockMvc.perform(post(url)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(toJson(body)));
+	}
 }

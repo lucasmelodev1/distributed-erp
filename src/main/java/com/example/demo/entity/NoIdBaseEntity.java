@@ -11,19 +11,19 @@ import jakarta.persistence.MappedSuperclass;
 @MappedSuperclass
 public abstract class NoIdBaseEntity {
 
-  @CreatedDate
-  @Column(name = "created_at")
-  private Instant createdAt;
+	@CreatedDate
+	@Column(name = "created_at")
+	private Instant createdAt;
 
-  @LastModifiedDate
-  @Column(name = "updated_at")
-  private Instant updatedAt;
+	@LastModifiedDate
+	@Column(name = "updated_at")
+	private Instant updatedAt;
 
-  public Instant getCreatedAt() {
-    return createdAt;
-  }
+	public Instant getCreatedAt() {
+		return createdAt;
+	}
 
-  public Instant getUpdatedAt() {
-    return updatedAt;
-  }
+	public Instant getUpdatedAt() {
+		return updatedAt;
+	}
 }
