@@ -1,6 +1,5 @@
 package com.example.demo.entity;
 
-import java.io.Serializable;
 import java.util.UUID;
 
 import com.example.demo.utils.UuidV7Id;
