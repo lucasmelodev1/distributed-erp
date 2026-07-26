@@ -8,8 +8,16 @@ import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import com.redis.testcontainers.RedisContainer;
+
 @TestConfiguration(proxyBeanMethods = false)
-class TestcontainersConfiguration {
+public class TestcontainersConfiguration {
+
+	@Bean
+	@ServiceConnection
+	RedisContainer redisContainer() {
+		return new RedisContainer(DockerImageName.parse("redis:8.6.5-alpine"));
+	}
 
 	@Bean
 	@ServiceConnection

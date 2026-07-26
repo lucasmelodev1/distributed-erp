@@ -52,7 +52,7 @@ public class AuthService {
 	private SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
 	private EmailServiceImpl emailService;
 
-	@Value("${AUTH_EMAIL_FROM}")
+	@Value("${AUTH_EMAIL_FROM:test@example.com}")
 	private String authEmailFrom;
 
 	public AuthService(EnvUtils envUtils, PasswordEncoder passwordEncoder, UserRepository userRepository,

@@ -26,7 +26,7 @@ spring:
     host: ${SPRING_MAIL_HOST:smtp.resend.com}
     port: ${SPRING_MAIL_PORT:587}
     username: ${SPRING_MAIL_USERNAME:resend}
-    password: ${SPRING_MAIL_PASSWORD}
+    password: ${SPRING_MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
