@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -51,5 +52,13 @@ public class TenantController {
 	public void updateTenant(@Valid @RequestBody UpdateTenantRequest dto) {
 		var tenantId = TenantContext.getTenantId();
 		tenantService.updateTenant(dto, tenantId);
+	}
+
+	@TenantAware(withPermissions = { "tenants:delete" })
+	@DeleteMapping
+	@Operation(summary = "Delete tenant")
+	public void deleteTenant() {
+		var tenantId = TenantContext.getTenantId();
+		tenantService.deleteTenant(tenantId);
 	}
 }

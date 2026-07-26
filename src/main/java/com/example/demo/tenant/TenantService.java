@@ -138,4 +138,15 @@ public class TenantService {
 			throw e;
 		}
 	}
+
+	@Transactional
+	public void deleteTenant(UUID tenantId) {
+		try {
+			tenantRepository.deleteById(tenantId);
+		} catch (Exception e) {
+			log.error("Error deleting tenant={}: {}", tenantId, e.getMessage(), e);
+			throw e;
+		}
+	}
+
 }
