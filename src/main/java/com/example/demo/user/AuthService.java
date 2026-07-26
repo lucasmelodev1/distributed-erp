@@ -4,6 +4,8 @@ import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,6 +19,7 @@ import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.demo.email.EmailServiceImpl;
 import com.example.demo.user.dto.CreateUserRequest;
 import com.example.demo.user.dto.FindMeResponse;
 import com.example.demo.user.dto.LoginRequest;
@@ -47,14 +50,20 @@ public class AuthService {
 	private final SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
 			.getContextHolderStrategy();
 	private SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
+	private EmailServiceImpl emailService;
+
+	@Value("${AUTH_EMAIL_FROM}")
+	private String authEmailFrom;
 
 	public AuthService(EnvUtils envUtils, PasswordEncoder passwordEncoder, UserRepository userRepository,
-			AuthTokenRepository authTokenRepository, AuthenticationManager authenticationManager) {
+			AuthTokenRepository authTokenRepository, AuthenticationManager authenticationManager,
+			EmailServiceImpl emailService) {
 		this.envUtils = envUtils;
 		this.passwordEncoder = passwordEncoder;
 		this.userRepository = userRepository;
 		this.authTokenRepository = authTokenRepository;
 		this.authenticationManager = authenticationManager;
+		this.emailService = emailService;
 	}
 
 	private String generateAndSaveToken(String email, AuthTokenType type) {
@@ -86,8 +95,13 @@ public class AuthService {
 		return foundToken;
 	}
 
-	private void logTokenInDev(String label, String token) {
-		// TODO: send email
+	private void sendTokenToUser(String email, String label, String token) {
+		try {
+			emailService.sendSimpleMessage(authEmailFrom, email, label, token);
+		} catch (Exception e) {
+			log.error("Error sending email to email={}: {}", email, e.getMessage(), e);
+		}
+
 		if (envUtils.isDevEnvironment()) {
 			System.out.println(label + ": " + token);
 		}
@@ -99,7 +113,7 @@ public class AuthService {
 		authTokenRepository.revokeActiveByEmailAndType(dto.email(), type, Instant.now());
 
 		var token = generateAndSaveToken(dto.email(), type);
-		logTokenInDev("Email Verification Token", token);
+		sendTokenToUser(dto.email(), "Email Verification Token", token);
 	}
 
 	public VerifyEmailResponse verifyEmail(VerifyEmailRequest dto) throws EntityNotFoundException {
@@ -124,7 +138,7 @@ public class AuthService {
 			authTokenRepository.revokeActiveByEmailAndType(dto.email(), type, Instant.now());
 
 			var token = generateAndSaveToken(dto.email(), type);
-			logTokenInDev("Reset Password Token", token);
+			sendTokenToUser(dto.email(), "Reset Password Token", token);
 		}
 	}
 

@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 @RequestMapping("/api/v1/auth")
 @Tag(name = "Authentication", description = "User login, registration and credential recovery")
 public class AuthController {
-	private AuthService authService;
+	private final AuthService authService;
 
 	public AuthController(AuthService authService) {
 		this.authService = authService;
