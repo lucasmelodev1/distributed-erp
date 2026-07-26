@@ -22,6 +22,8 @@ import com.example.demo.tenant.dto.CreateTenantRequest;
 import com.example.demo.tenant.dto.CreateTenantResponse;
 import com.example.demo.tenant.dto.UpdateTenantRequest;
 
+import jakarta.persistence.EntityNotFoundException;
+
 @Service
 public class TenantService {
 	private static final Logger log = LoggerFactory.getLogger(TenantService.class);
@@ -121,7 +123,13 @@ public class TenantService {
 	}
 
 	@Transactional
-	public void updateTenant(UpdateTenantRequest dto, Tenant tenant) {
+	public void updateTenant(UpdateTenantRequest dto, UUID tenantId) {
+		var tenantQueryResult = tenantRepository.findById(tenantId);
+		if (tenantQueryResult.isEmpty()) {
+			log.warn("Tenant not found. tenant={}", tenantId);
+			throw new EntityNotFoundException("Tenant not found");
+		}
+		var tenant = tenantQueryResult.get();
 		tenant.setName(dto.name());
 		try {
 			tenantRepository.save(tenant);

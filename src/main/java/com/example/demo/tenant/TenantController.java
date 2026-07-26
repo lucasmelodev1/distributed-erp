@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.tenant.dto.CreateTenantRequest;
 import com.example.demo.tenant.dto.CreateTenantResponse;
+import com.example.demo.tenant.dto.UpdateTenantRequest;
 import com.example.demo.user.User;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,6 +18,8 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @RestController
 @RequestMapping("/api/v1/tenant")
@@ -40,5 +43,13 @@ public class TenantController {
 			@Valid @RequestBody CreateTenantRequest dto,
 			@AuthenticationPrincipal User user) {
 		return tenantService.createTenant(dto, user.getId());
+	}
+
+	@TenantAware(withPermissions = { "tenants:update" })
+	@PutMapping
+	@Operation(summary = "Update tenant")
+	public void updateTenant(@Valid @RequestBody UpdateTenantRequest dto) {
+		var tenantId = TenantContext.getTenantId();
+		tenantService.updateTenant(dto, tenantId);
 	}
 }
