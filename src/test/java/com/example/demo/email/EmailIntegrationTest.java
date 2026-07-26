@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -90,9 +89,9 @@ class EmailIntegrationTest {
 	@Test
 	void requestEmailVerification_sendsEmail() throws Exception {
 		mockMvc.perform(MockMvcRequestBuilders
-						.post("/api/v1/auth/register-email-verification")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"email\":\"user@example.com\"}"))
+				.post("/api/v1/auth/register-email-verification")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"email\":\"user@example.com\"}"))
 				.andExpect(MockMvcResultMatchers.status().isOk());
 
 		Thread.sleep(2000);
@@ -113,9 +112,9 @@ class EmailIntegrationTest {
 		userRepository.save(user);
 
 		mockMvc.perform(MockMvcRequestBuilders
-						.post("/api/v1/auth/request-reset-password")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"email\":\"" + email + "\"}"))
+				.post("/api/v1/auth/request-reset-password")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"email\":\"" + email + "\"}"))
 				.andExpect(MockMvcResultMatchers.status().isOk());
 
 		Thread.sleep(2000);

@@ -12,6 +12,8 @@ import com.example.demo.user.User;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,8 +36,9 @@ public class TenantController {
 
 	@PostMapping
 	@Operation(summary = "Create tenant", description = "Create tenant and associate the current user to that tenant")
-	public CreateTenantResponse createTenant(@RequestBody CreateTenantRequest dto, @AuthenticationPrincipal User user) {
+	public CreateTenantResponse createTenant(
+			@Valid @RequestBody CreateTenantRequest dto,
+			@AuthenticationPrincipal User user) {
 		return tenantService.createTenant(dto, user.getId());
 	}
-
 }
