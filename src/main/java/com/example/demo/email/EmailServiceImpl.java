@@ -66,7 +66,7 @@ public class EmailServiceImpl implements EmailService {
 			try {
 				helper.addAttachment("Invoice", file);
 			} catch (MessagingException e) {
-				log.error("Error adding attachment to email from={} to={}: {}", from, to, e.getMessage(), e);
+				log.info("Error adding attachment to email from={} to={}: {}", from, to, e.getMessage(), e);
 				throw e;
 			}
 		}

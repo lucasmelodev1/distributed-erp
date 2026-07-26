@@ -1,12 +1,8 @@
 package com.example.demo.user;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
 import com.example.demo.user.dto.CreateUserRequest;
 import com.example.demo.user.dto.FindMeResponse;
@@ -21,7 +17,6 @@ import com.example.demo.user.dto.VerifyPasswordResetRequestRequest;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -97,17 +92,5 @@ public class AuthController {
 	public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequest dto) {
 		authService.resetPassword(dto);
 		return ResponseEntity.ok("Password reset successfully");
-	}
-
-	@ExceptionHandler(BadCredentialsException.class)
-	@ResponseStatus(HttpStatus.UNAUTHORIZED)
-	public String handleBadCredentials(BadCredentialsException ex) {
-		return ex.getMessage();
-	}
-
-	@ExceptionHandler(EntityNotFoundException.class)
-	@ResponseStatus(HttpStatus.NOT_FOUND)
-	public String handleNotFound(EntityNotFoundException ex) {
-		return ex.getMessage();
 	}
 }

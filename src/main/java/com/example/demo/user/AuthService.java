@@ -83,7 +83,7 @@ public class AuthService {
 				.orElseThrow(() -> notFoundException);
 
 		if (!foundToken.isValid()) {
-			log.warn("Token is invalid");
+			log.info("Token is invalid");
 			throw notFoundException;
 		}
 
@@ -98,7 +98,7 @@ public class AuthService {
 		try {
 			emailService.sendSimpleMessage(authEmailFrom, email, label, token);
 		} catch (Exception e) {
-			log.error("Error sending email to email={}: {}", email, e.getMessage(), e);
+			log.info("Error sending email to email={}: {}", email, e.getMessage(), e);
 		}
 
 		if (envUtils.isDevEnvironment()) {

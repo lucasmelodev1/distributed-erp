@@ -72,7 +72,7 @@ public class TenantValidationInterceptor implements HandlerInterceptor {
 
 		TenantUserId tenantUserId = new TenantUserId(tenantId, user.getId());
 		if (!tenantUserRepository.existsById(tenantUserId)) {
-			log.warn("User={} is not a member of tenant={}", user.getId(), tenantId);
+			log.info("User={} is not a member of tenant={}", user.getId(), tenantId);
 			sendUnauthorized(response, "You are not a member of this tenant");
 			return false;
 		}
@@ -84,7 +84,7 @@ public class TenantValidationInterceptor implements HandlerInterceptor {
 			UUID userId = user.getId();
 			for (String permission : requiredPermissions) {
 				if (!permissionCheckRepository.hasPermission(userId, tenantId, permission)) {
-					log.warn("User={} lacks permission={} in tenant={}", userId, permission, tenantId);
+					log.info("User={} lacks permission={} in tenant={}", userId, permission, tenantId);
 					sendForbidden(response, "Missing required permission: " + permission);
 					return false;
 				}
