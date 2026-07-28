@@ -1,10 +1,20 @@
 package com.example.demo.tenant.authorization.tenantuserrole;
 
 import java.time.Instant;
+
+import org.apache.commons.lang3.builder.ToStringExclude;
 import org.springframework.data.annotation.CreatedDate;
+
+import com.example.demo.tenant.TenantUser;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinColumns;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MapsId;
 import jakarta.persistence.Table;
 
 @Entity
@@ -12,6 +22,16 @@ import jakarta.persistence.Table;
 public class TenantUserRole {
 	@EmbeddedId
 	private TenantUserRoleId id;
+
+	@ManyToOne
+	@MapsId("tenantUserId")
+	@JoinColumns({
+			@JoinColumn(name = "user_id", referencedColumnName = "user_id"),
+			@JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
+	})
+	@JsonIgnore
+	@ToStringExclude
+	private TenantUser tenantUser;
 
 	@CreatedDate
 	@Column(name = "created_at")

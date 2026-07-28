@@ -3,11 +3,18 @@ package com.example.demo.tenant;
 import com.example.demo.email.EmailServiceImpl;
 import com.example.demo.utils.EnvUtils;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,8 +27,10 @@ import com.example.demo.tenant.authorization.tenantuserrole.TenantUserRoleId;
 import com.example.demo.tenant.authorization.tenantuserrole.TenantUserRoleRepository;
 import com.example.demo.tenant.dto.AcceptTenantInvitationRequest;
 import com.example.demo.tenant.dto.CheckInvitedUserResponse;
+import com.example.demo.tenant.dto.InactivateTenantUserRequest;
 import com.example.demo.tenant.dto.InviteUserToTenantRequest;
 import com.example.demo.tenant.dto.RevokeInvitationRequest;
+import com.example.demo.tenant.dto.UpdateTenantUserRequest;
 import com.example.demo.tenant.dto.CheckInvitedUserResponse.CheckInvitedUserNextAction;
 import com.example.demo.tenant.invitation.TenantInvitation;
 import com.example.demo.tenant.invitation.TenantInvitationRepository;
@@ -235,5 +244,72 @@ public class TenantUserService {
     @Transactional
     public void revokeInvitation(RevokeInvitationRequest dto, UUID tenantId) {
         tenantInvitationRepository.revokeByIdAndTenantId(dto.invitationId(), tenantId);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<TenantUser> findAllTenantUsers(@Nullable String query, @Nullable Boolean active, Pageable pageable,
+            UUID tenantId) {
+        var spec = Specification.allOf(
+                TenantUserSpecification.hasActiveStatus(active),
+                TenantUserSpecification.hasTenantId(tenantId),
+                TenantUserSpecification.hasUserName(query));
+        return tenantUserRepository.findAll(spec, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<TenantUser> findTenantUserById(UUID userId, UUID tenantId) {
+        return tenantUserRepository.findById(new TenantUserId(tenantId, userId));
+    }
+
+    @Transactional
+    public void updateTenantUserActiveStatus(UUID userId, InactivateTenantUserRequest dto, UUID tenantId) {
+        var tenantUserId = new TenantUserId(tenantId, userId);
+        var tenantUserQueryResult = tenantUserRepository.findById(tenantUserId);
+        if (tenantUserQueryResult.isEmpty()) {
+            log.info("Tenant user not found for tenant={} and user={}", tenantId, userId);
+            throw new EntityNotFoundException("Tenant user not found");
+        }
+
+        var tenantUser = tenantUserQueryResult.get();
+        if (dto.active()) {
+            log.info("Reactivating tenant user for tenant={} and user={}", tenantId, userId);
+            tenantUser.reactivate();
+        } else {
+            log.info("Inactivating tenant user for tenant={} and user={}", tenantId, userId);
+            tenantUser.inactivate();
+        }
+        tenantUserRepository.save(tenantUser);
+
+        log.info("Inactivated tenant user for tenant={} and user={}", tenantId, userId);
+    }
+
+    @Transactional
+    public void updateTenantUser(UUID userId, UpdateTenantUserRequest dto, UUID tenantId) {
+        var tenantUserQueryResult = tenantUserRepository.findById(new TenantUserId(tenantId, userId));
+        if (tenantUserQueryResult.isEmpty()) {
+            log.info("Tenant user not found for tenant={} and user={}", tenantId, userId);
+            throw new EntityNotFoundException("Tenant user not found");
+        }
+
+        var tenantUser = tenantUserQueryResult.get();
+        Set<TenantUserRole> tenantUserRoles = dto
+                .tenantRoleIds()
+                .stream()
+                .map(tenantRoleId -> new TenantUserRole(new TenantUserRoleId(userId, tenantId, tenantRoleId)))
+                .collect(Collectors.toSet());
+        tenantUser.setRoles(tenantUserRoles);
+
+        try {
+            tenantUserRepository.save(tenantUser);
+        } catch (Exception e) {
+            log.warn("Error updating tenant user roles for tenant={} and user={}: {}",
+                    tenantId,
+                    userId,
+                    e.getMessage(),
+                    e);
+            throw e;
+        }
+
+        log.debug("Updated tenant user for tenant={} and user={} successfully", tenantId, userId);
     }
 }

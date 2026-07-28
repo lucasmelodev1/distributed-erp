@@ -2,13 +2,18 @@ package com.example.demo.tenant.authorization.tenantrole;
 
 import java.util.Set;
 import java.util.UUID;
+
+import org.apache.commons.lang3.builder.ToStringExclude;
 import org.hibernate.annotations.SoftDelete;
 import org.hibernate.annotations.SoftDeleteType;
 import com.example.demo.entity.BaseEntity;
 import com.example.demo.tenant.authorization.tenantrolepermission.TenantRolePermission;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
@@ -23,6 +28,8 @@ public class TenantRole extends BaseEntity {
 	private String name;
 
 	@OneToMany(mappedBy = "role", orphanRemoval = true, cascade = jakarta.persistence.CascadeType.ALL, fetch = FetchType.LAZY)
+	@JsonIgnore
+	@ToStringExclude
 	private Set<TenantRolePermission> permissions;
 
 	public Set<TenantRolePermission> getPermissions() {
