@@ -1,4 +1,4 @@
-package com.example.demo.tenant;
+package com.example.demo.tenant.config;
 
 import java.util.UUID;
 

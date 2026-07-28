@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.demo.tenant.config.TenantAware;
+import com.example.demo.tenant.config.TenantContext;
 import com.example.demo.tenant.dto.AcceptTenantInvitationRequest;
 import com.example.demo.tenant.dto.CheckInvitedUserResponse;
 import com.example.demo.tenant.dto.CreateTenantRequest;
@@ -68,34 +70,4 @@ public class TenantController {
 		var tenantId = TenantContext.getTenantId();
 		tenantService.deleteTenant(tenantId);
 	}
-
-	@TenantAware(withPermissions = "tenants:invite")
-	@PostMapping("/invite")
-	@Operation(summary = "Invite user to tenant", description = "Invite user to tenant and sends them an email")
-	public void inviteUserToTenant(
-			@Valid @RequestBody InviteUserToTenantRequest dto,
-			@AuthenticationPrincipal User user) {
-		var tenantId = TenantContext.getTenantId();
-		tenantService.inviteUserToTenant(dto, tenantId, user);
-	}
-
-	@PostMapping("/invite/check-user")
-	@Operation(summary = "Check invited user", description = "Check if invited user is logged in, if they exist or if they need to create an account")
-	public CheckInvitedUserResponse checkInvitedUser(@RequestParam UUID code, Authentication authentication) {
-		if (authentication != null && authentication.getPrincipal() instanceof User user) {
-			tenantService.acceptInvitation(new AcceptTenantInvitationRequest(code), user);
-			return new CheckInvitedUserResponse(CheckInvitedUserNextAction.ACCEPT);
-		} else {
-			return tenantService.checkInvitedUser(code);
-		}
-	}
-
-	@TenantAware(withPermissions = "tenants:invite")
-	@PostMapping("/revoke-invite")
-	@Operation(summary = "Revoke invitation")
-	public void revokeInvite(@RequestBody RevokeInvitationRequest dto) {
-		var tenantId = TenantContext.getTenantId();
-		tenantService.revokeInvitation(dto, tenantId);
-	}
-
 }

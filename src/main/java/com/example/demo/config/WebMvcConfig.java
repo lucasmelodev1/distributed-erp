@@ -4,7 +4,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import com.example.demo.tenant.TenantValidationInterceptor;
+import com.example.demo.tenant.config.TenantValidationInterceptor;
 
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {

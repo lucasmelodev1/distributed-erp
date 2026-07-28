@@ -1,4 +1,4 @@
-package com.example.demo.tenant.authorization;
+package com.example.demo.tenant.authorization.tenantrolepermission;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

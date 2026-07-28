@@ -1,4 +1,4 @@
-package com.example.demo.tenant.authorization;
+package com.example.demo.tenant.authorization.permission;
 
 import java.util.List;
 import java.util.UUID;
@@ -6,6 +6,9 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import com.example.demo.tenant.authorization.tenantuserrole.TenantUserRole;
+import com.example.demo.tenant.authorization.tenantuserrole.TenantUserRoleId;
 
 public interface PermissionCheckRepository extends JpaRepository<TenantUserRole, TenantUserRoleId> {
 

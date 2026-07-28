@@ -1,4 +1,4 @@
-package com.example.demo.tenant;
+package com.example.demo.tenant.config;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -12,7 +12,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import com.example.demo.tenant.authorization.PermissionCheckRepository;
+import com.example.demo.tenant.TenantUserId;
+import com.example.demo.tenant.TenantUserRepository;
+import com.example.demo.tenant.authorization.permission.PermissionCheckRepository;
 import com.example.demo.user.User;
 
 import jakarta.servlet.http.HttpServletRequest;

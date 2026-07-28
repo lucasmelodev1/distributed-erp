@@ -1,4 +1,4 @@
-package com.example.demo.tenant.authorization;
+package com.example.demo.tenant.authorization.permission;
 
 import org.hibernate.annotations.SoftDelete;
 import org.hibernate.annotations.SoftDeleteType;
@@ -21,10 +21,18 @@ public class Permission extends NoIdBaseEntity {
 		this.description = description;
 	}
 
-	public Permission() {}
+	public Permission() {
+	}
 
-	public String getCode() { return code; }
+	public String getCode() {
+		return code;
+	}
 
-	public String getDescription() { return description; }
-	public void setDescription(String description) { this.description = description; }
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
 }

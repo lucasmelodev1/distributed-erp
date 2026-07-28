@@ -1,4 +1,4 @@
-package com.example.demo.tenant.authorization;
+package com.example.demo.tenant.authorization.tenantrolepermission;
 
 import java.io.Serializable;
 import java.util.UUID;

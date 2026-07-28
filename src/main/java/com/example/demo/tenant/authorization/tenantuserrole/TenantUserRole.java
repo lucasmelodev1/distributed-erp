@@ -1,4 +1,4 @@
-package com.example.demo.tenant.authorization;
+package com.example.demo.tenant.authorization.tenantuserrole;
 
 import java.time.Instant;
 import org.springframework.data.annotation.CreatedDate;
