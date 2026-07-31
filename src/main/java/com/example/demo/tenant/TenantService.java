@@ -1,8 +1,9 @@
 package com.example.demo.tenant;
 
-import com.example.demo.email.EmailServiceImpl;
+import com.example.demo.email.EmailService;
 import com.example.demo.utils.EnvUtils;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -49,13 +50,7 @@ public class TenantService {
 			TenantRoleRepository tenantRoleRepository,
 			TenantUserRoleRepository tenantUserRoleRepository,
 			TenantRolePermissionRepository tenantRolePermissionRepository,
-			PermissionCheckRepository permissionCheckRepository,
-			PermissionRepository permissionRepository,
-			TenantInvitationRepository tenantInvitationRepository,
-			TenantInvitationRoleRepository tenantInvitationRoleRepository,
-			EmailServiceImpl emailService,
-			EnvUtils envUtils,
-			UserRepository userRepository) {
+			PermissionRepository permissionRepository) {
 		this.tenantUserRepository = tenantUserRepository;
 		this.tenantRepository = tenantRepository;
 		this.tenantRoleRepository = tenantRoleRepository;
@@ -163,5 +158,10 @@ public class TenantService {
 			log.info("Error deleting tenant={}: {}", tenantId, e.getMessage(), e);
 			throw e;
 		}
+	}
+
+	@Transactional(readOnly = true)
+	public Optional<Tenant> findTenantById(UUID tenantId) {
+		return tenantRepository.findById(tenantId);
 	}
 }

@@ -1,439 +1,176 @@
 package com.example.demo.user;
 
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import java.util.stream.Stream;
 
-import java.time.Instant;
-
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.client.RestTestClient;
+import org.springframework.web.client.RestClient;
 
-import com.example.demo.BaseIntegrationTest;
-import com.example.demo.user.dto.CreateUserRequest;
+import com.example.demo.BaseControllerTest;
+import com.example.demo.TestcontainersConfiguration;
+import com.example.demo.user.dto.CreateUserByAuthTokenRequest;
+import com.example.demo.user.dto.FindMeResponse;
 import com.example.demo.user.dto.LoginRequest;
+import com.example.demo.user.dto.LoginResponse;
 import com.example.demo.user.dto.RequestEmailVerificationRequest;
-import com.example.demo.user.dto.RequestResetPasswordRequest;
+import com.example.demo.user.dto.RequestEmailVerificationResponse;
 import com.example.demo.user.dto.ResetPasswordRequest;
 import com.example.demo.user.dto.VerifyEmailRequest;
-import com.example.demo.user.dto.VerifyPasswordResetRequestRequest;
+import com.example.demo.user.dto.VerifyEmailResponse;
+import com.example.demo.user.dto.VerifyResetPasswordResponse;
 import com.example.demo.utils.TokenUtils;
 
-import jakarta.persistence.EntityManager;
+class AuthControllerTest extends BaseControllerTest {
+	private String exampleName = "Example User";
+	private String exampleEmail = "demo@example.com";
+	private String examplePassword = "Password@123";
 
-class AuthControllerTest extends BaseIntegrationTest {
+	@Test
+	void fullFlow_validData_returnsOkForAll() {
+		/**
+		 * Testing the user registration flow
+		 */
+		post("/api/v1/auth/register-email-verification")
+				.body(new RequestEmailVerificationRequest(exampleEmail))
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody(RequestEmailVerificationResponse.class);
+		post("/api/v1/auth/register-verify-email")
+				.body(new VerifyEmailRequest(TokenUtils.getAuthTestToken()))
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody(VerifyEmailResponse.class);
+		post("/api/v1/auth/register-create-user")
+				.body(new CreateUserByAuthTokenRequest(exampleName, TokenUtils.getAuthTestToken(),
+						examplePassword))
+				.exchange()
+				.expectStatus().isOk()
+				.expectCookie().exists(SESSION_NAME)
+				.expectBody(LoginResponse.class);
 
-	@Autowired
-	private AuthTokenRepository authTokenRepository;
+		/**
+		 * Testing the user login flow and data validity
+		 */
+		var cookies = post("/api/v1/auth/login")
+				.body(new LoginRequest(exampleEmail, examplePassword))
+				.exchange()
+				.expectStatus().isOk()
+				.expectCookie().exists(SESSION_NAME)
+				.expectBody(LoginResponse.class)
+				.returnResult().getResponseCookies();
+		var sessionCookie = cookies.getFirst(SESSION_NAME);
+		if (sessionCookie == null) {
+			throw new RuntimeException("SESSION cookie not found after login");
+		}
+		var findMeResponse = get("/api/v1/user/me")
+				.cookie(SESSION_NAME, sessionCookie.getValue())
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody(FindMeResponse.class)
+				.returnResult().getResponseBody();
 
-	@Autowired
-	private UserRepository userRepository;
+		assert findMeResponse != null;
+		assert findMeResponse.email().equals(exampleEmail);
+		assert findMeResponse.name().equals(exampleName);
 
-	@Autowired
-	private PasswordEncoder passwordEncoder;
+		post("/api/v1/auth/logout")
+				.cookie(SESSION_NAME, sessionCookie.getValue())
+				.exchange()
+				.expectStatus().isOk();
+		get("/api/v1/user/me")
+				.cookie(SESSION_NAME, sessionCookie.getValue())
+				.exchange()
+				.expectStatus().isUnauthorized();
 
-	@Autowired
-	private EntityManager entityManager;
+		/**
+		 * Tests the reset password feature
+		 */
+		post("/api/v1/auth/request-reset-password")
+				.body(new RequestEmailVerificationRequest(exampleEmail))
+				.exchange()
+				.expectStatus().isOk();
+		post("/api/v1/auth/verify-reset-password")
+				.body(new VerifyEmailRequest(TokenUtils.getAuthTestToken()))
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody(VerifyResetPasswordResponse.class);
+		var newPassword = "NewPassword@123";
+		post("/api/v1/auth/reset-password")
+				.body(new ResetPasswordRequest(exampleEmail, TokenUtils.getAuthTestToken(), newPassword))
+				.exchange()
+				.expectStatus().isOk();
 
-	private String createEmailVerificationToken(String email) {
-		String token = TokenUtils.generateNumeric(AuthToken.TOKEN_SIZE);
-		authTokenRepository.save(new AuthToken(email, TokenUtils.hash(token), AuthTokenType.EMAIL_VERIFICATION));
-		entityManager.flush();
-		return token;
+		post("/api/v1/auth/login")
+				.body(new LoginRequest(exampleEmail, newPassword))
+				.exchange()
+				.expectStatus().isOk()
+				.expectCookie().exists(SESSION_NAME)
+				.expectBody(LoginResponse.class);
 	}
 
-	private String createUserCreationToken(String email) {
-		String token = TokenUtils.generateNumeric(AuthToken.TOKEN_SIZE);
-		authTokenRepository.save(new AuthToken(email, TokenUtils.hash(token), AuthTokenType.USER_CREATION));
-		entityManager.flush();
-		return token;
+	static Stream<RequestEmailVerificationRequest> requestEmailVerification_invalidEmails() {
+		return Stream.of(
+				new RequestEmailVerificationRequest("not-an-email"),
+				new RequestEmailVerificationRequest(""),
+				new RequestEmailVerificationRequest("invalid-email@"),
+				new RequestEmailVerificationRequest("invalid-email.com"),
+				new RequestEmailVerificationRequest("invalid-email@com"),
+				new RequestEmailVerificationRequest(null));
 	}
 
-	private String createPasswordResetRequestToken(String email) {
-		String token = TokenUtils.generateNumeric(AuthToken.TOKEN_SIZE);
-		authTokenRepository.save(new AuthToken(email, TokenUtils.hash(token), AuthTokenType.PASSWORD_RESET_REQUEST));
-		entityManager.flush();
-		return token;
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("requestEmailVerification_invalidEmails")
+	void requestEmailVerification_invalidEmails_returns400(RequestEmailVerificationRequest dto) {
+		post("/api/v1/auth/register-email-verification")
+				.body(dto)
+				.exchange()
+				.expectStatus().isBadRequest();
 	}
 
-	private String createPasswordResetToken(String email) {
-		String token = TokenUtils.generateNumeric(AuthToken.TOKEN_SIZE);
-		authTokenRepository.save(new AuthToken(email, TokenUtils.hash(token), AuthTokenType.PASSWORD_RESET));
-		entityManager.flush();
-		return token;
+	static Stream<VerifyEmailRequest> verifyEmail_invalidTokens() {
+		return Stream.of(
+				new VerifyEmailRequest(""),
+				new VerifyEmailRequest("123"),
+				new VerifyEmailRequest("invalid-token"),
+				new VerifyEmailRequest(null));
 	}
 
-	private User createUserInDb(String email, String password, String name) {
-		var user = new User(name, email, passwordEncoder.encode(password));
-		userRepository.save(user);
-		entityManager.flush();
-		return user;
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("verifyEmail_invalidTokens")
+	void verifyEmail_invalidTokens_returns400(VerifyEmailRequest dto) {
+		post("/api/v1/auth/register-verify-email")
+				.body(dto)
+				.exchange()
+				.expectStatus().isBadRequest();
 	}
 
-	@Nested
-	class RegisterEmailVerification {
-
-		@Test
-		void requestEmailVerification_validEmail_returnsOk() throws Exception {
-			performPost("/api/v1/auth/register-email-verification",
-					new RequestEmailVerificationRequest("test@example.com"))
-					.andExpect(status().isOk());
-		}
-
-		@Test
-		void requestEmailVerification_invalidEmail_returns400() throws Exception {
-			performPost("/api/v1/auth/register-email-verification",
-					new RequestEmailVerificationRequest("not-an-email"))
-					.andExpect(status().isBadRequest());
-		}
-
-		@Test
-		void requestEmailVerification_blankEmail_returns400() throws Exception {
-			performPost("/api/v1/auth/register-email-verification",
-					new RequestEmailVerificationRequest(""))
-					.andExpect(status().isBadRequest());
-		}
-
-		@Test
-		void requestEmailVerification_createsTokenInDb() throws Exception {
-			String email = "tokencheck@example.com";
-
-			performPost("/api/v1/auth/register-email-verification",
-					new RequestEmailVerificationRequest(email))
-					.andExpect(status().isOk());
-
-			var tokens = authTokenRepository.findActiveVerifications(
-					email, AuthTokenType.EMAIL_VERIFICATION, Instant.now());
-			assert tokens.size() == 1;
-			assert tokens.getFirst().getEmail().equals(email);
-		}
-
-		@Test
-		void requestEmailVerification_calledTwice_revokesOldToken() throws Exception {
-			String email = "revoke@example.com";
-
-			performPost("/api/v1/auth/register-email-verification",
-					new RequestEmailVerificationRequest(email))
-					.andExpect(status().isOk());
-
-			performPost("/api/v1/auth/register-email-verification",
-					new RequestEmailVerificationRequest(email))
-					.andExpect(status().isOk());
-
-			var activeTokens = authTokenRepository.findActiveVerifications(
-					email, AuthTokenType.EMAIL_VERIFICATION, Instant.now());
-			assert activeTokens.size() == 1 : "Only the newest token should be active";
-		}
+	static Stream<CreateUserByAuthTokenRequest> createUser_invalidData() {
+		var testToken = TokenUtils.getAuthTestToken();
+		return Stream.of(
+				new CreateUserByAuthTokenRequest("", testToken, "Password@123"),
+				new CreateUserByAuthTokenRequest("Name", "", "Password@123"),
+				new CreateUserByAuthTokenRequest("Name", testToken, ""),
+				new CreateUserByAuthTokenRequest("Name", testToken, "a".repeat(User.PASSWORD_MIN_SIZE - 1)),
+				new CreateUserByAuthTokenRequest("Name", testToken, "a".repeat(User.PASSWORD_MAX_SIZE + 1)),
+				new CreateUserByAuthTokenRequest("a".repeat(User.NAME_MAX_SIZE + 1), testToken, "Password@123"));
 	}
 
-	@Nested
-	class VerifyEmail {
-
-		@Test
-		void verifyEmail_validToken_returnsOkAndNewToken() throws Exception {
-			String email = "verify@example.com";
-			String token = createEmailVerificationToken(email);
-
-			performPost("/api/v1/auth/register-verify-email",
-					new VerifyEmailRequest(token))
-					.andExpect(status().isOk())
-					.andExpect(jsonPath("$.token").isNotEmpty());
-		}
-
-		@Test
-		void verifyEmail_invalidToken_returns404() throws Exception {
-			performPost("/api/v1/auth/register-verify-email",
-					new VerifyEmailRequest("999999"))
-					.andExpect(status().isNotFound());
-		}
-
-		@Test
-		void verifyEmail_blankToken_returns400() throws Exception {
-			performPost("/api/v1/auth/register-verify-email",
-					new VerifyEmailRequest(""))
-					.andExpect(status().isBadRequest());
-		}
-
-		@Test
-		void verifyEmail_wrongSizeToken_returns400() throws Exception {
-			performPost("/api/v1/auth/register-verify-email",
-					new VerifyEmailRequest("123"))
-					.andExpect(status().isBadRequest());
-		}
-
-		@Test
-		void verifyEmail_consumedToken_returns404() throws Exception {
-			String email = "consumed@example.com";
-			String token = createEmailVerificationToken(email);
-
-			// First verification succeeds
-			performPost("/api/v1/auth/register-verify-email",
-					new VerifyEmailRequest(token))
-					.andExpect(status().isOk());
-
-			// Second verification with same token fails
-			performPost("/api/v1/auth/register-verify-email",
-					new VerifyEmailRequest(token))
-					.andExpect(status().isNotFound());
-		}
-	}
-
-	@Nested
-	class CreateUser {
-
-		@Test
-		void createUser_validToken_returnsOk() throws Exception {
-			String email = "newuser@example.com";
-			String token = createUserCreationToken(email);
-
-			performPost("/api/v1/auth/register-create-user",
-					new CreateUserRequest("New User", token, "Password@123"))
-					.andExpect(status().isOk());
-
-			assert userRepository.findByEmail(email).isPresent();
-		}
-
-		@Test
-		void createUser_validToken_savesCorrectData() throws Exception {
-			String email = "savedata@example.com";
-			String name = "Save User";
-			String password = "Password@123";
-			String token = createUserCreationToken(email);
-
-			performPost("/api/v1/auth/register-create-user",
-					new CreateUserRequest(name, token, password))
-					.andExpect(status().isOk());
-
-			var user = userRepository.findByEmail(email).orElseThrow();
-			assert user.getName().equals(name);
-			assert user.getEmail().equals(email);
-			assert passwordEncoder.matches(password, user.getPassword());
-		}
-
-		@Test
-		void createUser_invalidToken_returns404() throws Exception {
-			performPost("/api/v1/auth/register-create-user",
-					new CreateUserRequest("User", "999999", "Password@123"))
-					.andExpect(status().isNotFound());
-		}
-
-		@Test
-		void createUser_blankFields_returns400() throws Exception {
-			performPost("/api/v1/auth/register-create-user",
-					new CreateUserRequest("", "", ""))
-					.andExpect(status().isBadRequest());
-		}
-
-		@Test
-		void createUser_passwordTooShort_returns400() throws Exception {
-			String token = createUserCreationToken("short@example.com");
-
-			performPost("/api/v1/auth/register-create-user",
-					new CreateUserRequest("User", token, "short"))
-					.andExpect(status().isBadRequest());
-		}
-
-		@Test
-		void createUser_passwordTooLong_returns400() throws Exception {
-			String token = createUserCreationToken("long@example.com");
-			String longPassword = "a".repeat(33);
-
-			performPost("/api/v1/auth/register-create-user",
-					new CreateUserRequest("User", token, longPassword))
-					.andExpect(status().isBadRequest());
-		}
-
-		@Test
-		void createUser_nameTooLong_returns400() throws Exception {
-			String token = createUserCreationToken("longname@example.com");
-			String longName = "a".repeat(129);
-
-			performPost("/api/v1/auth/register-create-user",
-					new CreateUserRequest(longName, token, "Password@123"))
-					.andExpect(status().isBadRequest());
-		}
-	}
-
-	@Nested
-	class Login {
-
-		@Test
-		void login_validCredentials_returnsOkAndLoginResponse() throws Exception {
-			String email = "login@example.com";
-			String password = "Password@123";
-			createUserInDb(email, password, "Login User");
-
-			performPost("/api/v1/auth/login", new LoginRequest(email, password))
-					.andExpect(status().isOk())
-					.andExpect(jsonPath("$.id").isNotEmpty())
-					.andExpect(jsonPath("$.email").value(email))
-					.andExpect(jsonPath("$.role").value("USER"));
-		}
-
-		@Test
-		void login_wrongPassword_returns401() throws Exception {
-			String email = "wrongpass@example.com";
-			createUserInDb(email, "Password@123", "Wrong Pass User");
-
-			performPost("/api/v1/auth/login", new LoginRequest(email, "wrongpassword"))
-					.andExpect(status().isUnauthorized());
-		}
-
-		@Test
-		void login_nonExistentUser_returns401() throws Exception {
-			performPost("/api/v1/auth/login",
-					new LoginRequest("nonexistent@example.com", "Password@123"))
-					.andExpect(status().isUnauthorized());
-		}
-
-		@Test
-		void login_blankEmail_returns400() throws Exception {
-			performPost("/api/v1/auth/login", new LoginRequest("", "Password@123"))
-					.andExpect(status().isBadRequest());
-		}
-
-		@Test
-		void login_blankPassword_returns400() throws Exception {
-			performPost("/api/v1/auth/login", new LoginRequest("test@example.com", ""))
-					.andExpect(status().isBadRequest());
-		}
-	}
-
-	@Nested
-	class RequestResetPassword {
-
-		@Test
-		void requestResetPassword_existingUser_returnsOk() throws Exception {
-			String email = "resetreq@example.com";
-			createUserInDb(email, "Password@123", "Reset User");
-
-			performPost("/api/v1/auth/request-reset-password",
-					new RequestResetPasswordRequest(email))
-					.andExpect(status().isOk());
-
-			var tokens = authTokenRepository.findActiveVerifications(
-					email, AuthTokenType.PASSWORD_RESET_REQUEST, Instant.now());
-			assert tokens.size() == 1;
-		}
-
-		@Test
-		void requestResetPassword_nonExistentUser_returnsOk() throws Exception {
-			performPost("/api/v1/auth/request-reset-password",
-					new RequestResetPasswordRequest("ghost@example.com"))
-					.andExpect(status().isOk());
-
-			var tokens = authTokenRepository.findActiveVerifications(
-					"ghost@example.com", AuthTokenType.PASSWORD_RESET_REQUEST, Instant.now());
-			assert tokens.isEmpty() : "No token should be created for non-existent user";
-		}
-
-		@Test
-		void requestResetPassword_calledTwice_revokesOldToken() throws Exception {
-			String email = "resetrev@example.com";
-			createUserInDb(email, "Password@123", "Reset Rev User");
-
-			performPost("/api/v1/auth/request-reset-password",
-					new RequestResetPasswordRequest(email))
-					.andExpect(status().isOk());
-
-			performPost("/api/v1/auth/request-reset-password",
-					new RequestResetPasswordRequest(email))
-					.andExpect(status().isOk());
-
-			var activeTokens = authTokenRepository.findActiveVerifications(
-					email, AuthTokenType.PASSWORD_RESET_REQUEST, Instant.now());
-			assert activeTokens.size() == 1;
-		}
-
-		@Test
-		void requestResetPassword_blankEmail_returns400() throws Exception {
-			performPost("/api/v1/auth/request-reset-password",
-					new RequestResetPasswordRequest(""))
-					.andExpect(status().isBadRequest());
-		}
-	}
-
-	@Nested
-	class VerifyResetPassword {
-
-		@Test
-		void verifyResetPassword_validToken_returnsOkAndNewToken() throws Exception {
-			String email = "verifyreset@example.com";
-			String token = createPasswordResetRequestToken(email);
-
-			performPost("/api/v1/auth/verify-reset-password",
-					new VerifyPasswordResetRequestRequest(token))
-					.andExpect(status().isOk());
-		}
-
-		@Test
-		void verifyResetPassword_invalidToken_returns404() throws Exception {
-			performPost("/api/v1/auth/verify-reset-password",
-					new VerifyPasswordResetRequestRequest("999999"))
-					.andExpect(status().isNotFound());
-		}
-
-		@Test
-		void verifyResetPassword_blankToken_returns400() throws Exception {
-			performPost("/api/v1/auth/verify-reset-password",
-					new VerifyPasswordResetRequestRequest(""))
-					.andExpect(status().isBadRequest());
-		}
-
-		@Test
-		void verifyResetPassword_wrongSizeToken_returns400() throws Exception {
-			performPost("/api/v1/auth/verify-reset-password",
-					new VerifyPasswordResetRequestRequest("123"))
-					.andExpect(status().isBadRequest());
-		}
-	}
-
-	@Nested
-	class ResetPassword {
-
-		@Test
-		void resetPassword_validToken_returnsOk() throws Exception {
-			String email = "resetpass@example.com";
-			String oldPassword = "Password@123";
-			String newPassword = "NewPassword@123";
-			createUserInDb(email, oldPassword, "Reset Pass User");
-			String token = createPasswordResetToken(email);
-
-			performPost("/api/v1/auth/reset-password",
-					new ResetPasswordRequest(email, token, newPassword))
-					.andExpect(status().isOk());
-
-			// Verify new password works
-			performPost("/api/v1/auth/login", new LoginRequest(email, newPassword))
-					.andExpect(status().isOk());
-
-			// Verify old password no longer works
-			performPost("/api/v1/auth/login", new LoginRequest(email, oldPassword))
-					.andExpect(status().isUnauthorized());
-		}
-
-		@Test
-		void resetPassword_invalidToken_returns404() throws Exception {
-			performPost("/api/v1/auth/reset-password",
-					new ResetPasswordRequest("test@example.com", "999999", "NewPassword@123"))
-					.andExpect(status().isNotFound());
-		}
-
-		@Test
-		void resetPassword_nonExistentUser_returns404() throws Exception {
-			String token = createPasswordResetToken("ghost@example.com");
-
-			performPost("/api/v1/auth/reset-password",
-					new ResetPasswordRequest("ghost@example.com", token, "NewPassword@123"))
-					.andExpect(status().isNotFound());
-		}
-
-		@Test
-		void resetPassword_blankFields_returns400() throws Exception {
-			performPost("/api/v1/auth/reset-password",
-					new ResetPasswordRequest("", "", ""))
-					.andExpect(status().isBadRequest());
-		}
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("createUser_invalidData")
+	void createUser_invalidData_returns400(CreateUserByAuthTokenRequest dto) {
+		post("/api/v1/auth/register-create-user")
+				.body(dto)
+				.exchange()
+				.expectStatus().isBadRequest();
 	}
 }

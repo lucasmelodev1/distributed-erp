@@ -1,6 +1,6 @@
 package com.example.demo.tenant;
 
-import com.example.demo.email.EmailServiceImpl;
+import com.example.demo.email.EmailService;
 import com.example.demo.utils.EnvUtils;
 import java.util.List;
 import java.util.Optional;
@@ -52,7 +52,7 @@ public class TenantUserService {
     private final TenantUserRoleRepository tenantUserRoleRepository;
     private final TenantInvitationRepository tenantInvitationRepository;
     private final TenantInvitationRoleRepository tenantInvitationRoleRepository;
-    private final EmailServiceImpl emailService;
+    private final EmailService emailService;
     private final UserRepository userRepository;
 
     @Value("${TENANT_INVITATION_FROM:invitations@example.com}")
@@ -71,7 +71,7 @@ public class TenantUserService {
             PermissionRepository permissionRepository,
             TenantInvitationRepository tenantInvitationRepository,
             TenantInvitationRoleRepository tenantInvitationRoleRepository,
-            EmailServiceImpl emailService,
+            EmailService emailService,
             EnvUtils envUtils,
             UserRepository userRepository) {
         this.tenantUserRepository = tenantUserRepository;

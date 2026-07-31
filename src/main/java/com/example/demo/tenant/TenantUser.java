@@ -54,6 +54,11 @@ public class TenantUser extends NoIdBaseEntity {
 		this.id = id;
 	}
 
+	public TenantUser(TenantUserId id, Set<TenantUserRole> roles) {
+		this.id = id;
+		this.roles = roles;
+	}
+
 	public TenantUser() {
 	}
 
