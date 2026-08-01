@@ -1,8 +1,12 @@
 package com.example.demo.tenant;
 
 import java.util.List;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.tenant.config.TenantAware;
@@ -38,8 +42,18 @@ public class TenantController {
 		return tenantService.findAllUserTenants(user.getId());
 	}
 
+	@TenantAware
+	@GetMapping("/current")
+	@Operation(summary = "Find current tenant", description = "Find the current tenant. The authenticated user must be a member of this tenant")
+	public Tenant findTenantById() {
+		var tenantId = TenantContext.getTenantId();
+		return tenantService.findTenantById(tenantId)
+				.orElseThrow(() -> new DataIntegrityViolationException("Current tenant should NEVER be null"));
+	}
+
 	@PostMapping
 	@Operation(summary = "Create tenant", description = "Create tenant and associate the current user to that tenant")
+	@ResponseStatus(code = HttpStatus.CREATED)
 	public CreateTenantResponse createTenant(
 			@Valid @RequestBody CreateTenantRequest dto,
 			@AuthenticationPrincipal User user) {

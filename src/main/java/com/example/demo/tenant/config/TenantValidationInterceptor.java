@@ -23,7 +23,7 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class TenantValidationInterceptor implements HandlerInterceptor {
 	private static final Logger log = LoggerFactory.getLogger(TenantValidationInterceptor.class);
-	private static final String TENANT_ID_HEADER = "X-Tenant-Id";
+	public static final String TENANT_ID_HEADER = "X-Tenant-Id";
 	private static final String AUTH_PATH_PREFIX = "/api/v1/auth/";
 
 	private final TenantUserRepository tenantUserRepository;
