@@ -5,19 +5,8 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.context.annotation.Import;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.client.RestTestClient;
-import org.springframework.web.client.RestClient;
 
 import com.example.demo.BaseControllerTest;
-import com.example.demo.TestcontainersConfiguration;
 import com.example.demo.user.dto.CreateUserByAuthTokenRequest;
 import com.example.demo.user.dto.FindMeResponse;
 import com.example.demo.user.dto.LoginRequest;
@@ -31,6 +20,10 @@ import com.example.demo.user.dto.VerifyResetPasswordResponse;
 import com.example.demo.utils.TokenUtils;
 
 class AuthControllerTest extends BaseControllerTest {
+	public AuthControllerTest() {
+		super("/api/v1/auth");
+	}
+
 	private String exampleName = "Example User";
 	private String exampleEmail = "demo@example.com";
 	private String examplePassword = "Password@123";
@@ -40,17 +33,17 @@ class AuthControllerTest extends BaseControllerTest {
 		/**
 		 * Testing the user registration flow
 		 */
-		post("/api/v1/auth/register-email-verification")
+		post("/register-request-email-verification")
 				.body(new RequestEmailVerificationRequest(exampleEmail))
 				.exchange()
 				.expectStatus().isOk()
 				.expectBody(RequestEmailVerificationResponse.class);
-		post("/api/v1/auth/register-verify-email")
+		post("/register-verify-email")
 				.body(new VerifyEmailRequest(TokenUtils.getAuthTestToken()))
 				.exchange()
 				.expectStatus().isOk()
 				.expectBody(VerifyEmailResponse.class);
-		post("/api/v1/auth/register-create-user")
+		post("/register-create-user")
 				.body(new CreateUserByAuthTokenRequest(exampleName, TokenUtils.getAuthTestToken(),
 						examplePassword))
 				.exchange()
@@ -61,7 +54,7 @@ class AuthControllerTest extends BaseControllerTest {
 		/**
 		 * Testing the user login flow and data validity
 		 */
-		var cookies = post("/api/v1/auth/login")
+		var cookies = post("/login")
 				.body(new LoginRequest(exampleEmail, examplePassword))
 				.exchange()
 				.expectStatus().isOk()
@@ -72,7 +65,7 @@ class AuthControllerTest extends BaseControllerTest {
 		if (sessionCookie == null) {
 			throw new RuntimeException("SESSION cookie not found after login");
 		}
-		var findMeResponse = get("/api/v1/user/me")
+		var findMeResponse = get("/me")
 				.cookie(SESSION_NAME, sessionCookie.getValue())
 				.exchange()
 				.expectStatus().isOk()
@@ -83,11 +76,11 @@ class AuthControllerTest extends BaseControllerTest {
 		assert findMeResponse.email().equals(exampleEmail);
 		assert findMeResponse.name().equals(exampleName);
 
-		post("/api/v1/auth/logout")
+		post("/logout")
 				.cookie(SESSION_NAME, sessionCookie.getValue())
 				.exchange()
 				.expectStatus().isOk();
-		get("/api/v1/user/me")
+		get("/me")
 				.cookie(SESSION_NAME, sessionCookie.getValue())
 				.exchange()
 				.expectStatus().isUnauthorized();
@@ -95,22 +88,22 @@ class AuthControllerTest extends BaseControllerTest {
 		/**
 		 * Tests the reset password feature
 		 */
-		post("/api/v1/auth/request-reset-password")
+		post("/request-reset-password")
 				.body(new RequestEmailVerificationRequest(exampleEmail))
 				.exchange()
 				.expectStatus().isOk();
-		post("/api/v1/auth/verify-reset-password")
+		post("/verify-reset-password")
 				.body(new VerifyEmailRequest(TokenUtils.getAuthTestToken()))
 				.exchange()
 				.expectStatus().isOk()
 				.expectBody(VerifyResetPasswordResponse.class);
 		var newPassword = "NewPassword@123";
-		post("/api/v1/auth/reset-password")
+		post("/reset-password")
 				.body(new ResetPasswordRequest(exampleEmail, TokenUtils.getAuthTestToken(), newPassword))
 				.exchange()
 				.expectStatus().isOk();
 
-		post("/api/v1/auth/login")
+		post("/login")
 				.body(new LoginRequest(exampleEmail, newPassword))
 				.exchange()
 				.expectStatus().isOk()
@@ -131,7 +124,7 @@ class AuthControllerTest extends BaseControllerTest {
 	@ParameterizedTest(name = "{0}")
 	@MethodSource("requestEmailVerification_invalidEmails")
 	void requestEmailVerification_invalidEmails_returns400(RequestEmailVerificationRequest dto) {
-		post("/api/v1/auth/register-email-verification")
+		post("/register-request-email-verification")
 				.body(dto)
 				.exchange()
 				.expectStatus().isBadRequest();
@@ -148,7 +141,7 @@ class AuthControllerTest extends BaseControllerTest {
 	@ParameterizedTest(name = "{0}")
 	@MethodSource("verifyEmail_invalidTokens")
 	void verifyEmail_invalidTokens_returns400(VerifyEmailRequest dto) {
-		post("/api/v1/auth/register-verify-email")
+		post("/register-verify-email")
 				.body(dto)
 				.exchange()
 				.expectStatus().isBadRequest();
@@ -168,7 +161,7 @@ class AuthControllerTest extends BaseControllerTest {
 	@ParameterizedTest(name = "{0}")
 	@MethodSource("createUser_invalidData")
 	void createUser_invalidData_returns400(CreateUserByAuthTokenRequest dto) {
-		post("/api/v1/auth/register-create-user")
+		post("/register-create-user")
 				.body(dto)
 				.exchange()
 				.expectStatus().isBadRequest();

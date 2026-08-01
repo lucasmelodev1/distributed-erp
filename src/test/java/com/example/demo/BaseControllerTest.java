@@ -12,6 +12,11 @@ import org.springframework.test.web.reactive.server.ExchangeResult;
 import org.springframework.test.web.servlet.client.RestTestClient;
 import org.springframework.web.client.RestClient.RequestHeadersSpec;
 
+import com.example.demo.user.User;
+import com.example.demo.user.UserRepository;
+import com.example.demo.user.UserService;
+import com.example.demo.user.dto.CreateUserRequest;
+
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @AutoConfigureRestTestClient
@@ -21,29 +26,50 @@ public abstract class BaseControllerTest {
     @Autowired
     protected RestTestClient restClient;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private UserService userService;
+
+    protected final String baseUrl;
+
     protected static final String SESSION_NAME = "SESSION";
+
+    private String getFormattedUri(String uri) {
+        return "%s%s".formatted(baseUrl, uri);
+    }
+
+    public BaseControllerTest(String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+
+    protected User createUser(CreateUserRequest dto) {
+        var response = userService.createUser(dto);
+        return userRepository.findById(response.userId()).orElseThrow();
+    }
 
     protected RestTestClient.RequestBodySpec post(String uri) {
         return restClient.post()
-                .uri(uri)
+                .uri(getFormattedUri(uri))
                 .accept(MediaType.APPLICATION_JSON);
     }
 
     protected RestTestClient.RequestBodySpec put(String uri) {
         return restClient.put()
-                .uri(uri)
+                .uri(getFormattedUri(uri))
                 .accept(MediaType.APPLICATION_JSON);
     }
 
     protected RestTestClient.RequestHeadersSpec<?> delete(String uri) {
         return restClient.delete()
-                .uri(uri)
+                .uri(getFormattedUri(uri))
                 .accept(MediaType.APPLICATION_JSON);
     }
 
     protected RestTestClient.RequestHeadersSpec<?> get(String uri) {
         return restClient.get()
-                .uri(uri)
+                .uri(getFormattedUri(uri))
                 .accept(MediaType.APPLICATION_JSON);
     }
 }

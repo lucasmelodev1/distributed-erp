@@ -33,9 +33,17 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Tag(name = "Authentication", description = "User login, registration and credential recovery")
 public class AuthController {
 	private final AuthService authService;
+	private final UserService userService;
 
-	public AuthController(AuthService authService) {
+	public AuthController(AuthService authService, UserService userService) {
 		this.authService = authService;
+		this.userService = userService;
+	}
+
+	@GetMapping("/me")
+	@Operation(summary = "Find the current user")
+	public FindMeResponse findMe(@AuthenticationPrincipal User user) {
+		return userService.findMe(user);
 	}
 
 	@PostMapping("/login")
@@ -53,7 +61,7 @@ public class AuthController {
 		authService.logout(request, response);
 	}
 
-	@PostMapping("/register-email-verification")
+	@PostMapping("/register-request-email-verification")
 	@Operation(summary = "Request email verification", description = "The first step in the user registration flow. The user requests a verification token to be sent to their email.")
 	public RequestEmailVerificationResponse registerRequestEmailVerification(
 			@Valid @RequestBody RequestEmailVerificationRequest dto) {
