@@ -9,18 +9,14 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.reactive.server.ExchangeResult;
 import org.springframework.test.web.servlet.client.RestTestClient;
-import org.springframework.web.client.RestClient.RequestHeadersSpec;
-
-import com.example.demo.tenant.Tenant;
+import com.example.demo.tenant.domain.Tenant;
 import com.example.demo.tenant.config.TenantValidationInterceptor;
-import com.example.demo.user.User;
-import com.example.demo.user.UserRepository;
-import com.example.demo.user.UserService;
-import com.example.demo.user.dto.CreateUserRequest;
-import com.example.demo.user.dto.LoginRequest;
-import com.example.demo.user.dto.LoginResponse;
+import com.example.demo.user.adapter.outbound.persistence.UserRepository;
+import com.example.demo.user.adapter.inbound.UserService;
+import com.example.demo.user.adapter.web.dto.user.CreateUserRequest;
+import com.example.demo.user.adapter.web.dto.auth.LoginRequest;
+import com.example.demo.user.adapter.web.dto.auth.LoginResponse;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc

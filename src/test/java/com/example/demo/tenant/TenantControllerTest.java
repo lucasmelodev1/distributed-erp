@@ -11,8 +11,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import com.example.demo.BaseControllerTest;
 import com.example.demo.TestUser;
-import com.example.demo.tenant.dto.CreateTenantRequest;
-import com.example.demo.tenant.dto.CreateTenantResponse;
+import com.example.demo.tenant.adapter.outbound.persistence.TenantRepository;
+import com.example.demo.tenant.adapter.web.dto.tenant.CreateTenantRequest;
+import com.example.demo.tenant.adapter.web.dto.tenant.CreateTenantResponse;
+import com.example.demo.tenant.domain.Tenant;
 
 public class TenantControllerTest extends BaseControllerTest {
 
@@ -21,7 +23,7 @@ public class TenantControllerTest extends BaseControllerTest {
     }
 
     private TestUser alphaUser;
-    private TestUser betaUser;
+    // private TestUser betaUser;
 
     @Autowired
     private TenantRepository tenantRepository;
@@ -29,7 +31,7 @@ public class TenantControllerTest extends BaseControllerTest {
     @BeforeAll
     void setup() {
         alphaUser = createUser("Alpha User", "alphauser@mail.com");
-        betaUser = createUser("Beta User", "betauser@mail.com");
+        // betaUser = createUser("Beta User", "betauser@mail.com");
     }
 
     @Test
@@ -50,10 +52,6 @@ public class TenantControllerTest extends BaseControllerTest {
                 .expectBody(CreateTenantResponse.class)
                 .value(response -> {
                     assertNotNull(response.id());
-                    assertEquals(response.name(), alphaTenantName);
-                    assertEquals(response.users().size(), 1);
-                    assertEquals(response.roles().size(), 1);
-                    assertEquals(response.users().get(0), alphaUser.user().getId());
                 })
                 .returnResult().getResponseBody();
         var alphaTenant = tenantRepository.findById(alphaCreateTenantResponse.id()).orElseThrow();

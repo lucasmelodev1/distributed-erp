@@ -1,107 +1,44 @@
 # AGENTS.md
 
-## Build & Run
+## Commands
+
+The project uses Maven Wrapper and requires JDK 25 (`pom.xml` sets `java.version` to 25).
 
 ```bash
-# Build (requires Docker running for Testcontainers)
-./mvnw clean install
-
-# Run tests only
-./mvnw test
-
-# Full verification (unit + integration tests via Testcontainers)
-./mvnw verify
-
-# Run specific test class
-./mvnw verify -Dtest=TenantControllerTest
-
-# Compile only (no tests)
-./mvnw compile
+./mvnw compile                           # compile only
+./mvnw test                              # all tests
+./mvnw test -Dtest=TenantControllerTest  # one test class
+./mvnw verify                            # full Maven verification
+./mvnw clean install                     # clean local build/install
 ```
 
-Docker must be running for `./mvnw verify` — tests spin up PostgreSQL, Kafka, Redis, and Grafana via Testcontainers.
+Tests import `TestcontainersConfiguration`, which starts PostgreSQL, Kafka, Redis, and Grafana containers. Docker must be running for test/verify commands. The optional local stack is `docker compose up` and reads `.env` for the app service; do not commit `.env` or credentials.
 
-## Architecture
+## Structure
 
-**Package structure:**
-```
-com.example.demo
-├── config/          # Spring Security, WebMvc, OpenAPI configs
-├── email/           # Email service interface + implementation
-├── entity/          # BaseEntity, NoIdBaseEntity (shared JPA base classes)
-├── telemetry/       # OpenTelemetry, context propagation
-├── tenant/          # Multi-tenancy domain
-│   ├── authorization/   # Roles, permissions, role-permission mappings
-│   ├── invitation/      # Tenant invitations
-│   └── dto/             # Request/response records
-├── user/            # Authentication domain (login, registration, tokens)
-└── utils/           # UUIDv7, token hashing, env utils
-```
+- `src/main/java/com/example/demo/config`: Spring Security, MVC, exception, and OpenAPI configuration.
+- `tenant`: tenant membership, invitations, and authorization (`tenantrole`, `tenantuserrole`, `tenantrolepermission`, `permission`).
+- `user`: session authentication, registration, password reset, and email verification.
+- `telemetry`: OpenTelemetry and request/context filters; `DemoApplication` imports these configurations.
+- `src/main/resources/db/migrations`: Flyway migrations. `application.yaml` enables out-of-order migrations and JPA `ddl-auto: validate`.
 
-**Multi-tenancy model:**
-- Users belong to tenants via `tenant_users` (composite PK)
-- Roles are scoped to tenants (`tenant_roles`)
-- Users get roles in tenants via `tenant_user_roles`
-- Roles have permissions via `tenant_role_permissions`
-- `@TenantAware` annotation on controller methods validates `X-Tenant-Id` header + membership + permissions
+## Conventions
 
-**Authorization model:**
-```
-tenants ──── tenant_users ──── users
-    │
-    └── tenant_roles ──── tenant_role_permissions ──── permissions
-         │
-         └── tenant_user_roles (assigns roles to users in tenants)
-```
+- Add schema changes as a new `V<timestamp>__<description>.sql` migration; never rely on Hibernate schema updates.
+- Use `@UuidV7Id` for UUID entity IDs. `Permission` uses its string code as its ID; join entities without `updatedAt` do not use the base entities.
+- Use `@SoftDelete(strategy = SoftDeleteType.TIMESTAMP, columnName = "deleted_at")` for soft-deletable entities; do not hard-delete them.
+- Public APIs should always use inactive vs active status rather than soft deleting itself. If an entity does not have an inactivated_at column, ask to add it.
+- Keep request/response DTOs as records under the feature's `dto` package, named `{Action}{Request|Response}`.
+- Auth codes are six-digit numeric values and must be stored through `TokenUtils.hash()`, never as plaintext. In the test environment generated numeric codes are all zeroes.
 
-## Database
+## Tenant Security
 
-- **Flyway** manages migrations: `src/main/resources/db/migrations/`
-- `out-of-order: true` — migration filenames use `V<timestamp>__<description>.sql`
-- JPA `ddl-auto: validate` — schema changes require a migration, never `update`
-- Adding columns requires a new migration file, not `update`
+- Session authentication uses Redis-backed Spring sessions. Controller tests use `RestTestClient` and the `SESSION` cookie; MockMvc tests should attach the user per request with Spring Security's `user(...)` postprocessor.
+- Annotate tenant-scoped controller methods with `@TenantAware`. The interceptor requires a valid `X-Tenant-Id`, verifies membership, sets `TenantContext`, and checks every permission in `withPermissions`.
+- Auth paths under `/api/v1/auth/` bypass tenant validation; security explicitly permits the auth endpoints plus `/v3/api-docs/**`, `/swagger-ui/**`, and `/scalar/**`.
 
-## Code Patterns
+## Testing Patterns
 
-- **UUIDv7 primary keys**: Use `@UuidV7Id` annotation on `@Id` fields (custom Hibernate generator in `com.example.demo.utils`)
-- **Soft delete**: `@SoftDelete(strategy = SoftDeleteType.TIMESTAMP, columnName = "deleted_at")` — never hard-delete entities. Hibernate filters out soft-deleted entities automatically.
-- **DTOs**: Java records in `{feature}/dto/` sub-package. Naming: `{Action}{Request|Response}.java`
-- **Auth tokens**: 6-digit numeric codes, stored as SHA-256 hashes via `TokenUtils.hash()` — never store plaintext tokens
-- **Error responses**: Use `"{\"error\":\"" + message + "}"` string concatenation (not Jackson ObjectMapper)
-- **Tenant-aware endpoints**: Annotate with `@TenantAware` (optional: `withPermissions` for permission checks)
-
-## Entity Inheritance
-
-```
-NoIdBaseEntity (createdAt, updatedAt)
-└── BaseEntity (adds @Id @UuidV7Id UUID id)
-    ├── Tenant, TenantRole, User
-    └── Permission (uses String code as @Id, not UUID)
-```
-
-Entities WITHOUT `updatedAt` column (e.g., join tables) don't extend any base — define fields manually following the `TenantUserRole` pattern.
-
-## Testing
-
-- **Base class**: Extend `BaseIntegrationTest` for integration tests
-- **Security**: Use `SecurityMockMvcRequestPostProcessors.user(user)` for per-request authentication — avoids session-based SecurityContext leakage between MockMvc requests
-- **Test users**: Create directly via `UserRepository.save()` + `PasswordEncoder.encode()`
-- **Test tenants**: Create via MockMvc POST to `/api/v1/tenant` (exercises full flow including role/permission setup)
-- **@Transactional**: Tests are wrapped in a transaction that rolls back after each test
-
-## Security
-
-- Session-based auth with `HttpSessionSecurityContextRepository` + Redis sessions
-- `@TenantAware` interceptor validates `X-Tenant-Id` header, checks tenant membership, then checks permissions
-- Permission check uses native query joining `tenant_user_roles` → `tenant_role_permissions`
-- Auth endpoints (`/api/v1/auth/**`) are `permitAll()` — skipped by tenant validation
-- OpenAPI spec shows `X-Tenant-Id` as required via `OperationCustomizer`
-
-## Configuration
-
-- `application.yaml` (not `.properties`)
-- Datasource from env vars: `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` with defaults in `application.yaml`
-- `.env.example` has Postgres defaults; copy to `.env` for local dev
-- Redis: `SPRING_REDIS_HOST`, `SPRING_REDIS_PORT`, `SPRING_REDIS_PASSWORD`
-- Mail: `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`
-- API docs: `/scalar` (Scalar UI), `/v3/api-docs` (OpenAPI spec)
+- Extend `BaseIntegrationTest` for MockMvc integration tests; it imports Testcontainers and is `@Transactional`.
+- Extend `BaseControllerTest` for random-port controller tests; it uses the `test` profile and provides helpers for session cookies and tenant headers.
+- Prefer repository/service setup for users and the tenant creation endpoint when the test is intended to exercise tenant initialization and role/permission setup.

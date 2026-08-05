@@ -5,21 +5,26 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import com.example.demo.BaseControllerTest;
-import com.example.demo.user.dto.CreateUserByAuthTokenRequest;
-import com.example.demo.user.dto.FindMeResponse;
-import com.example.demo.user.dto.LoginRequest;
-import com.example.demo.user.dto.LoginResponse;
-import com.example.demo.user.dto.RequestEmailVerificationRequest;
-import com.example.demo.user.dto.RequestEmailVerificationResponse;
-import com.example.demo.user.dto.ResetPasswordRequest;
-import com.example.demo.user.dto.VerifyEmailRequest;
-import com.example.demo.user.dto.VerifyEmailResponse;
-import com.example.demo.user.dto.VerifyResetPasswordResponse;
-import com.example.demo.utils.TokenUtils;
+import com.example.demo.user.domain.User;
+import com.example.demo.user.adapter.web.dto.auth.CreateUserByAuthTokenRequest;
+import com.example.demo.user.adapter.web.dto.user.FindMeResponse;
+import com.example.demo.user.adapter.web.dto.auth.LoginRequest;
+import com.example.demo.user.adapter.web.dto.auth.LoginResponse;
+import com.example.demo.user.adapter.web.dto.auth.RequestEmailVerificationRequest;
+import com.example.demo.user.adapter.web.dto.auth.RequestEmailVerificationResponse;
+import com.example.demo.user.adapter.web.dto.auth.ResetPasswordRequest;
+import com.example.demo.user.adapter.web.dto.auth.VerifyEmailRequest;
+import com.example.demo.user.adapter.web.dto.auth.VerifyEmailResponse;
+import com.example.demo.user.adapter.web.dto.auth.VerifyResetPasswordResponse;
+import com.example.demo.utils.TokenService;
 
 class AuthControllerTest extends BaseControllerTest {
+	@Autowired
+	private TokenService tokenService;
+
 	public AuthControllerTest() {
 		super("/api/v1/auth");
 	}
@@ -39,12 +44,12 @@ class AuthControllerTest extends BaseControllerTest {
 				.expectStatus().isOk()
 				.expectBody(RequestEmailVerificationResponse.class);
 		post("/register-verify-email")
-				.body(new VerifyEmailRequest(TokenUtils.getAuthTestToken()))
+				.body(new VerifyEmailRequest(tokenService.generate()))
 				.exchange()
 				.expectStatus().isOk()
 				.expectBody(VerifyEmailResponse.class);
 		post("/register-create-user")
-				.body(new CreateUserByAuthTokenRequest(exampleName, TokenUtils.getAuthTestToken(),
+				.body(new CreateUserByAuthTokenRequest(exampleName, tokenService.generate(),
 						examplePassword))
 				.exchange()
 				.expectStatus().isOk()
@@ -93,13 +98,13 @@ class AuthControllerTest extends BaseControllerTest {
 				.exchange()
 				.expectStatus().isOk();
 		post("/verify-reset-password")
-				.body(new VerifyEmailRequest(TokenUtils.getAuthTestToken()))
+				.body(new VerifyEmailRequest(tokenService.generate()))
 				.exchange()
 				.expectStatus().isOk()
 				.expectBody(VerifyResetPasswordResponse.class);
 		var newPassword = "NewPassword@123";
 		post("/reset-password")
-				.body(new ResetPasswordRequest(exampleEmail, TokenUtils.getAuthTestToken(), newPassword))
+				.body(new ResetPasswordRequest(exampleEmail, tokenService.generate(), newPassword))
 				.exchange()
 				.expectStatus().isOk();
 
@@ -147,8 +152,8 @@ class AuthControllerTest extends BaseControllerTest {
 				.expectStatus().isBadRequest();
 	}
 
-	static Stream<CreateUserByAuthTokenRequest> createUser_invalidData() {
-		var testToken = TokenUtils.getAuthTestToken();
+	Stream<CreateUserByAuthTokenRequest> createUser_invalidData() {
+		var testToken = tokenService.generate();
 		return Stream.of(
 				new CreateUserByAuthTokenRequest("", testToken, "Password@123"),
 				new CreateUserByAuthTokenRequest("Name", "", "Password@123"),

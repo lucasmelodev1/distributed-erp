@@ -12,10 +12,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import com.example.demo.tenant.TenantUserId;
-import com.example.demo.tenant.TenantUserRepository;
-import com.example.demo.tenant.authorization.permission.PermissionCheckRepository;
-import com.example.demo.user.User;
+import com.example.demo.tenant.domain.TenantUserId;
+import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository;
+import com.example.demo.tenant.adapter.outbound.persistence.PermissionCheckRepository;
+import com.example.demo.user.domain.User;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
