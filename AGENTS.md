@@ -16,11 +16,42 @@ Tests import `TestcontainersConfiguration`, which starts PostgreSQL, Kafka, Redi
 
 ## Structure
 
-- `src/main/java/com/example/demo/config`: Spring Security, MVC, exception, and OpenAPI configuration.
-- `tenant`: tenant membership, invitations, and authorization (`tenantrole`, `tenantuserrole`, `tenantrolepermission`, `permission`).
-- `user`: session authentication, registration, password reset, and email verification.
+The project follows hexagonal architecture (ports & adapters) per feature module.
+
+### Package layout
+
+Each feature (`tenant`, `user`) uses this internal structure:
+- `domain/`: Domain entities, value objects, and business rules. JPA annotations are allowed here.
+- `port/inbound/`: Use-case interfaces consumed by controllers (e.g. `AuthPort`, `TenantManagementPort`).
+- `port/outbound/`: Infrastructure interfaces for things like persistence or external services (currently empty — repositories are injected directly).
+- `adapter/inbound/`: Application services implementing inbound ports.
+- `adapter/outbound/persistence/`: Spring Data repository interfaces.
+- `adapter/web/`: REST controllers, DTOs, and web-specific wiring.
+- `config/`: Feature-specific Spring configuration (e.g. tenant context, interceptor).
+
+### Other packages
+- `config`: Global Spring Security, MVC, exception handling, and OpenAPI configuration.
+- `entity`: Shared `@MappedSuperclass` base classes (`BaseEntity`, `NoIdBaseEntity`) — not concrete entities.
 - `telemetry`: OpenTelemetry and request/context filters; `DemoApplication` imports these configurations.
+- `utils`: Shared utilities (hashing, UUID generation, email validation).
 - `src/main/resources/db/migrations`: Flyway migrations. `application.yaml` enables out-of-order migrations and JPA `ddl-auto: validate`.
+
+## Architecture
+
+- Controllers depend on inbound **port** interfaces, not on service implementations directly.
+- Application services implement inbound ports and orchestrate domain logic + outbound adapters.
+- Keep web-layer DTOs in `adapter/web/dto/` — port interfaces should reference domain types or their own request/response records, not web DTOs.
+- When adding a new use case, create an inbound port first, then implement it in an adapter service.
+
+## Domain Modeling
+
+- Domain entities live in the `domain/` package of each feature module, not in the global `entity/` package.
+- Prefer rich domain models: business rules, state transitions, and invariants belong on the domain class, not in services.
+  - Good: `authToken.consume()`, `tenant.inviteUser(email, roles)`, `invitation.isValid()`
+  - Bad: `authToken.setConsumedAt(Instant.now())` in a service, then `repository.save(authToken)`
+- Services should orchestrate: fetch entities, call domain methods, persist results. Services should not contain domain rules.
+- Value objects (e.g. `TokenHash`, composite ID records) belong in `domain/` alongside their entities.
+- Join entities (`TenantUserRole`, `TenantRolePermission`, `TenantInvitationRole`) that only carry foreign keys are acceptable as anemic — they have no behavior to push into.
 
 ## Conventions
 
@@ -30,6 +61,8 @@ Tests import `TestcontainersConfiguration`, which starts PostgreSQL, Kafka, Redi
 - Public APIs should always use inactive vs active status rather than soft deleting itself. If an entity does not have an inactivated_at column, ask to add it.
 - Keep request/response DTOs as records under the feature's `dto` package, named `{Action}{Request|Response}`.
 - Auth codes are six-digit numeric values and must be stored through `TokenUtils.hash()`, never as plaintext. In the test environment generated numeric codes are all zeroes.
+- When creating a new domain entity, ask whether it has business rules. If yes, model them as methods on the class from the start.
+- New entities should extend `BaseEntity` (or `NoIdBaseEntity` for join tables without `updatedAt`).
 
 ## Tenant Security
 
