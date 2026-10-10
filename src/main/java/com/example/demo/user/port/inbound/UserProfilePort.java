@@ -15,5 +15,5 @@ public interface UserProfilePort {
     boolean existsByEmail(String email);
     Map<UUID, FindMeResponse> findProfilesByIds(Collection<UUID> ids);
     CreateUserResponse createUser(CreateUserRequest dto);
-    void updateUser(UpdateUserRequest dto, User user);
+    FindMeResponse updateUser(UpdateUserRequest dto, User user);
 }

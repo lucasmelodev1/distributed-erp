@@ -10,3 +10,16 @@ extend type Query {
 	"""The authenticated user."""
 	me: User!
 }
+
+extend type Mutation {
+	"""Renames the authenticated user."""
+	updateMe(input: UpdateMeInput!): UpdateMePayload!
+}
+
+input UpdateMeInput {
+	name: String!
+}
+
+type UpdateMePayload {
+	user: User!
+}

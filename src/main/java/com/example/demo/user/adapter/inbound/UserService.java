@@ -17,6 +17,8 @@ import com.example.demo.user.adapter.web.dto.user.FindMeResponse;
 import com.example.demo.user.adapter.web.dto.user.UpdateUserRequest;
 import com.example.demo.user.domain.User;
 
+import jakarta.persistence.EntityNotFoundException;
+
 @Service
 public class UserService implements UserProfilePort {
     private final UserRepository userRepository;
@@ -29,7 +31,10 @@ public class UserService implements UserProfilePort {
 
     @Transactional(readOnly = true)
     public FindMeResponse findMe(User user) {
-        return toProfile(user);
+        // The session holds a snapshot of the user; always answer from the database.
+        return userRepository.findById(user.getId())
+                .map(UserService::toProfile)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
     }
 
     @Transactional(readOnly = true)
@@ -55,8 +60,10 @@ public class UserService implements UserProfilePort {
     }
 
     @Transactional
-    public void updateUser(UpdateUserRequest dto, User user) {
-        user.setName(dto.name());
-        userRepository.save(user);
+    public FindMeResponse updateUser(UpdateUserRequest dto, User user) {
+        var managed = userRepository.findById(user.getId())
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+        managed.setName(dto.name());
+        return toProfile(userRepository.save(managed));
     }
 }

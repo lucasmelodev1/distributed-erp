@@ -17,30 +17,20 @@ import com.example.demo.user.adapter.web.dto.auth.VerifyEmailRequest;
 import com.example.demo.user.adapter.web.dto.auth.VerifyEmailResponse;
 import com.example.demo.user.adapter.web.dto.auth.VerifyPasswordResetRequestRequest;
 import com.example.demo.user.adapter.web.dto.auth.VerifyResetPasswordResponse;
-import com.example.demo.user.adapter.web.dto.user.FindMeResponse;
 import com.example.demo.user.port.inbound.AuthPort;
-import com.example.demo.user.port.inbound.UserProfilePort;
 import com.netflix.graphql.dgs.DgsComponent;
 import com.netflix.graphql.dgs.DgsDataFetchingEnvironment;
 import com.netflix.graphql.dgs.DgsMutation;
-import com.netflix.graphql.dgs.DgsQuery;
 import com.netflix.graphql.dgs.InputArgument;
 
 @DgsComponent
 public class AuthDataFetcher {
 	private final AuthPort authService;
-	private final UserProfilePort userService;
 	private final GraphQlInputValidator validator;
 
-	public AuthDataFetcher(AuthPort authService, UserProfilePort userService, GraphQlInputValidator validator) {
+	public AuthDataFetcher(AuthPort authService, GraphQlInputValidator validator) {
 		this.authService = authService;
-		this.userService = userService;
 		this.validator = validator;
-	}
-
-	@DgsQuery
-	public FindMeResponse me(DgsDataFetchingEnvironment dfe) {
-		return userService.findMe(GraphQlRequestContext.currentUser(dfe));
 	}
 
 	@PublicOperation
