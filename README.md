@@ -22,4 +22,4 @@ docker compose up   # optional local stack (reads .env)
 ./mvnw spring-boot:run
 ```
 
-See [AGENTS.md](AGENTS.md) for architecture and conventions.
+See [CLAUDE.md](CLAUDE.md) for architecture and conventions.
