@@ -1,6 +1,7 @@
 package com.example.demo.tenant.domain.invitation;
 
 import java.time.Instant;
+import java.util.UUID;
 
 import org.apache.commons.lang3.builder.ToStringExclude;
 import org.hibernate.annotations.SoftDelete;
@@ -38,6 +39,12 @@ public class TenantInvitationRole {
 
 	public TenantInvitationRole(TenantInvitationRoleId id) {
 		this.id = id;
+	}
+
+	/** The invitation id is derived from the association when the invitation is persisted. */
+	TenantInvitationRole(TenantInvitation invitation, UUID roleId) {
+		this.invitation = invitation;
+		this.id = new TenantInvitationRoleId(null, roleId);
 	}
 
 	public TenantInvitationRole() {

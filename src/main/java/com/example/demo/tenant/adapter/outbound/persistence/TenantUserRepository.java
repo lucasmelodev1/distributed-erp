@@ -10,6 +10,7 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -38,6 +39,20 @@ public interface TenantUserRepository
 				AND tu.id.userId = :userId
 			""")
 	Optional<MembershipState> findMembershipState(@Param("tenantId") UUID tenantId, @Param("userId") UUID userId);
+
+	/**
+	 * Brings back a membership that was removed (soft-deleted). Native because the
+	 * soft-delete filter hides such rows from JPQL. Returns how many rows were restored.
+	 */
+	@Modifying(flushAutomatically = true)
+	@Query(value = """
+			UPDATE tenant_users
+			SET deleted_at = NULL, inactivated_at = NULL, updated_at = CURRENT_TIMESTAMP(6)
+			WHERE tenant_id = :tenantId
+				AND user_id = :userId
+				AND deleted_at IS NOT NULL
+			""", nativeQuery = true)
+	int restoreRemoved(@Param("tenantId") UUID tenantId, @Param("userId") UUID userId);
 
 	@Query(value = """
 			SELECT tu FROM User u

@@ -1,15 +1,14 @@
 package com.example.demo.tenant.domain.invitation;
 
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.TemporalAmount;
 import java.util.HashSet;
+import java.util.Collection;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
-import org.hibernate.annotations.SoftDelete;
-import org.hibernate.annotations.SoftDeleteType;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.annotation.CreatedDate;
 
@@ -17,8 +16,10 @@ import com.example.demo.tenant.domain.Tenant;
 import com.example.demo.utils.HashUtils;
 import com.example.demo.utils.UuidV7Id;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -26,10 +27,16 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
+/**
+ * An offer to join a tenant with a set of roles. The invitee proves they received
+ * it by presenting the emailed code; only the code's hash is stored.
+ */
 @Entity
 @Table(name = "tenant_invitations")
 public class TenantInvitation {
-	private static final TemporalAmount EXPIRATION_TIME = Duration.ofDays(3);
+	public enum Status {
+		PENDING, ACCEPTED, REVOKED, EXPIRED
+	}
 
 	@Id
 	@UuidV7Id
@@ -48,7 +55,7 @@ public class TenantInvitation {
 	private @Nullable Instant revokedAt;
 
 	@Column(name = "expires_at")
-	private @Nullable Instant expiresAt = Instant.now().plus(EXPIRATION_TIME);
+	private @Nullable Instant expiresAt;
 
 	@CreatedDate
 	@Column(name = "created_at")
@@ -58,36 +65,54 @@ public class TenantInvitation {
 	@JoinColumn(name = "tenant_id", referencedColumnName = "id", insertable = false, updatable = false)
 	private Tenant tenant;
 
-	@OneToMany(mappedBy = "invitation", fetch = FetchType.LAZY)
+	@OneToMany(mappedBy = "invitation", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
 	private Set<TenantInvitationRole> roles = new HashSet<>();
 
 	@Column(name = "code_hash", nullable = false, updatable = false)
 	private String codeHash;
 
-	public TenantInvitation() {
+	protected TenantInvitation() {
 	}
 
-	public TenantInvitation(UUID tenantId, String email, String code) throws NoSuchAlgorithmException {
-		this.tenantId = tenantId;
-		this.email = email;
-		this.codeHash = HashUtils.hash(code);
+	/** The only way to create an invitation: the email is normalised and the code is stored hashed. */
+	public static TenantInvitation issue(UUID tenantId, String email, String code, Collection<UUID> roleIds,
+			Duration ttl) {
+		var invitation = new TenantInvitation();
+		invitation.tenantId = tenantId;
+		invitation.email = email.trim().toLowerCase(Locale.ROOT);
+		invitation.codeHash = HashUtils.hash(code);
+		invitation.createdAt = Instant.now();
+		invitation.expiresAt = invitation.createdAt.plus(ttl);
+		invitation.roles = roleIds.stream().distinct()
+				.map(roleId -> new TenantInvitationRole(invitation, roleId))
+				.collect(Collectors.toCollection(HashSet::new));
+		return invitation;
 	}
 
-	public TenantInvitation(UUID tenantId, String email, String code, Set<UUID> roleIds) {
-		this.tenantId = tenantId;
-		this.email = email;
-		this.codeHash = HashUtils.hash(code);
-		this.roles = roleIds.stream()
-				.map(roleId -> new TenantInvitationRole(new TenantInvitationRoleId(this.id, roleId)))
-				.collect(java.util.stream.Collectors.toSet());
+	/** Whether this invitation was sent to the given address (ignoring case). */
+	public boolean isFor(String userEmail) {
+		return email.equalsIgnoreCase(userEmail.trim());
 	}
 
-	public boolean checkCode(String code) throws NoSuchAlgorithmException {
-		return HashUtils.verifyHash(code, this.codeHash);
+	/**
+	 * Consumes the invitation. An invitation that is expired, revoked or already
+	 * accepted behaves exactly like one that does not exist.
+	 */
+	public void accept() {
+		if (!isValid()) {
+			throw new EntityNotFoundException("Invitation not found");
+		}
+		consume();
 	}
 
+	/** Cancels a pending invitation. Revoking twice is harmless; revoking an accepted one is not allowed. */
 	public void revoke() {
-		revokedAt = Instant.now();
+		if (isConsumed()) {
+			throw new IllegalArgumentException("The invitation was already accepted");
+		}
+		if (!isRevoked()) {
+			revokedAt = Instant.now();
+		}
 	}
 
 	public void consume() {
@@ -108,6 +133,20 @@ public class TenantInvitation {
 
 	public boolean isValid() {
 		return !isExpired() && !isConsumed() && !isRevoked();
+	}
+
+	public Status getStatus() {
+		if (isConsumed()) {
+			return Status.ACCEPTED;
+		}
+		if (isRevoked()) {
+			return Status.REVOKED;
+		}
+		return isExpired() ? Status.EXPIRED : Status.PENDING;
+	}
+
+	public Set<UUID> getRoleIds() {
+		return roles.stream().map(role -> role.getId().roleId()).collect(Collectors.toSet());
 	}
 
 	public UUID getId() {

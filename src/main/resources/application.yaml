@@ -44,6 +44,8 @@ spring:
           starttls:
             enable: true
 app:
+  invitations:
+    ttl: 3d
   graphql:
     max-depth: 10
     max-complexity: 200

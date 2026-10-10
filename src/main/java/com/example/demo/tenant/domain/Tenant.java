@@ -1,18 +1,17 @@
 package com.example.demo.tenant.domain;
 
+import java.time.Duration;
 import java.time.Instant;
-import java.util.Set;
+import java.util.Collection;
 import java.util.UUID;
 
 import org.hibernate.annotations.SoftDelete;
 import org.hibernate.annotations.SoftDeleteType;
 
 import com.example.demo.entity.BaseEntity;
-import com.example.demo.tenant.adapter.web.dto.user.InviteUserToTenantResponse;
 import com.example.demo.tenant.domain.invitation.TenantInvitation;
 
 import jakarta.persistence.Entity;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 @Entity
@@ -25,14 +24,9 @@ public class Tenant extends BaseEntity {
 
 	private Instant inactivatedAt;
 
-	@OneToMany(mappedBy = "tenant")
-	private Set<TenantInvitation> invitations;
-
-	public InviteUserToTenantResponse inviteUser(String email, Set<UUID> tenantRoleIds) {
-		String code = UUID.randomUUID().toString();
-		TenantInvitation invitation = new TenantInvitation(this.getId(), email, code, tenantRoleIds);
-		invitations.add(invitation);
-		return new InviteUserToTenantResponse(code);
+	/** Issues an invitation to join this tenant with the given roles. */
+	public TenantInvitation inviteUser(String email, Collection<UUID> tenantRoleIds, String code, Duration ttl) {
+		return TenantInvitation.issue(getId(), email, code, tenantRoleIds, ttl);
 	}
 
 	public Tenant(String name) {

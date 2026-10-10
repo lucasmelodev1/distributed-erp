@@ -1,0 +1,116 @@
+"""An offer to join a tenant with some roles, sent to an email address."""
+type TenantInvitation {
+	id: UUID!
+	email: String!
+	status: TenantInvitationStatus!
+	"""The roles the invitee receives on joining. Roles deleted since are skipped when it is accepted."""
+	roles: [TenantRole!]!
+	expiresAt: DateTime
+	createdAt: DateTime
+}
+
+enum TenantInvitationStatus {
+	PENDING
+	ACCEPTED
+	REVOKED
+	EXPIRED
+}
+
+type TenantInvitationConnection {
+	edges: [TenantInvitationEdge!]!
+	pageInfo: PageInfo!
+}
+
+type TenantInvitationEdge {
+	node: TenantInvitation!
+	cursor: String!
+}
+
+"""What the holder of an invitation code has to do next."""
+enum InvitedUserNextAction {
+	"""An account exists for the invited email: log in, then accept."""
+	LOGIN
+	"""No account exists: registerUserFromInvitation."""
+	CREATE_ACCOUNT
+	"""Logged in as the invited email: acceptTenantInvitation."""
+	ACCEPT
+	"""Logged in as a different email address."""
+	WRONG_ACCOUNT
+}
+
+type CheckInvitedUserPayload {
+	nextAction: InvitedUserNextAction!
+	email: String!
+	tenantName: String!
+}
+
+extend type Query {
+	"""
+	Invitations of the tenant selected by X-Tenant-Id, oldest first. Requires the tenants:invite permission.
+	"""
+	tenantInvitations(
+		"""Page size, 1 to 100."""
+		first: Int = 20
+		"""Return the invitations after this cursor (a pageInfo.endCursor)."""
+		after: String
+		"""Only invitations in this status."""
+		status: TenantInvitationStatus
+	): TenantInvitationConnection!
+
+	"""
+	Public. Tells the holder of an emailed code what to do next, without changing anything. Unknown, expired, revoked and used codes are all reported as not found.
+	"""
+	checkInvitedUser(code: String!): CheckInvitedUserPayload!
+}
+
+extend type Mutation {
+	"""
+	Invites an email address to the tenant selected by X-Tenant-Id and emails it a link with the code. Replaces any pending invitation for that address. Requires the tenants:invite permission.
+	"""
+	inviteUserToTenant(input: InviteUserToTenantInput!): InviteUserToTenantPayload!
+
+	"""Cancels a pending invitation. Requires the tenants:invite permission."""
+	revokeInvitation(input: RevokeInvitationInput!): RevokeInvitationPayload!
+
+	"""
+	Joins the tenant the code was issued for. Requires a session for the invited email address.
+	"""
+	acceptTenantInvitation(input: AcceptTenantInvitationInput!): AcceptTenantInvitationPayload!
+
+	"""
+	Public. Creates the account for the invited email address (holding the code proves control of it), joins the tenant, logs the user in and sets the session cookie.
+	"""
+	registerUserFromInvitation(input: RegisterUserFromInvitationInput!): LoginPayload!
+}
+
+input InviteUserToTenantInput {
+	email: String!
+	"""Must all be roles of this tenant."""
+	tenantRoleIds: [UUID!]!
+}
+
+type InviteUserToTenantPayload {
+	invitation: TenantInvitation!
+}
+
+input RevokeInvitationInput {
+	invitationId: UUID!
+}
+
+type RevokeInvitationPayload {
+	invitation: TenantInvitation!
+}
+
+input AcceptTenantInvitationInput {
+	code: String!
+}
+
+type AcceptTenantInvitationPayload {
+	tenant: Tenant!
+}
+
+input RegisterUserFromInvitationInput {
+	code: String!
+	name: String!
+	password: String!
+}
