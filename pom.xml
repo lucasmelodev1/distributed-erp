@@ -28,8 +28,26 @@
 	</scm>
 	<properties>
 		<java.version>25</java.version>
+		<dgs.version>12.1.0</dgs.version>
+		<json-path.version>3.0.0</json-path.version>
 	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.netflix.graphql.dgs</groupId>
+				<artifactId>graphql-dgs-platform-dependencies</artifactId>
+				<version>${dgs.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
+		<dependency>
+			<groupId>com.netflix.graphql.dgs</groupId>
+			<artifactId>dgs-starter</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

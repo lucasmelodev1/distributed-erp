@@ -1,0 +1,125 @@
+package com.example.demo.config.graphql;
+
+import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Component;
+
+import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository.MembershipState;
+import com.example.demo.tenant.config.TenantAccessChecker;
+import com.example.demo.tenant.config.TenantAware;
+import com.example.demo.tenant.config.TenantContext;
+import com.example.demo.tenant.config.TenantValidationInterceptor;
+import com.example.demo.user.domain.User;
+
+import graphql.GraphQLContext;
+import graphql.execution.instrumentation.InstrumentationState;
+import graphql.execution.instrumentation.SimplePerformantInstrumentation;
+import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters;
+import graphql.schema.DataFetcher;
+import graphql.schema.DataFetchingEnvironment;
+import graphql.schema.GraphQLTypeUtil;
+
+/**
+ * Enforces authentication, tenant membership and permissions on every
+ * top-level Query/Mutation field before its data fetcher runs.
+ *
+ * <ul>
+ * <li>Default-deny: authentication is required unless the operation is marked
+ * {@link PublicOperation}.</li>
+ * <li>{@link TenantAware} operations require a valid {@code X-Tenant-Id} the
+ * user belongs to, plus every permission listed in {@code withPermissions}.</li>
+ * <li>{@link TenantContext} is only set while the fetcher runs.</li>
+ * </ul>
+ */
+@Component
+class GraphQlAccessInstrumentation extends SimplePerformantInstrumentation {
+	private final GraphQlOperationRegistry registry;
+	private final TenantAccessChecker accessChecker;
+
+	GraphQlAccessInstrumentation(GraphQlOperationRegistry registry, TenantAccessChecker accessChecker) {
+		this.registry = registry;
+		this.accessChecker = accessChecker;
+	}
+
+	@Override
+	public DataFetcher<?> instrumentDataFetcher(DataFetcher<?> dataFetcher,
+			InstrumentationFieldFetchParameters parameters, InstrumentationState state) {
+		if (parameters.getExecutionStepInfo().getPath().getLevel() != 1) {
+			return dataFetcher;
+		}
+		return environment -> {
+			try {
+				authorize(environment);
+				return dataFetcher.get(environment);
+			} finally {
+				TenantContext.clear();
+			}
+		};
+	}
+
+	private void authorize(DataFetchingEnvironment environment) {
+		String parentType = GraphQLTypeUtil.simplePrint(environment.getParentType());
+		var policy = registry.policyFor(parentType, environment.getField().getName());
+		if (policy.isPublic()) {
+			return;
+		}
+
+		GraphQLContext context = environment.getGraphQlContext();
+		User user = authenticatedUser(context);
+
+		TenantAware tenantAware = policy.tenantAware();
+		if (tenantAware == null) {
+			return;
+		}
+
+		var tenant = resolveTenant(context, user);
+		var decision = accessChecker.check(tenant.membership(), tenant.id(), user.getId(), tenantAware);
+		if (!decision.granted()) {
+			throw new AccessDeniedException(decision.message());
+		}
+		TenantContext.setTenantId(tenant.id());
+	}
+
+	private User authenticatedUser(GraphQLContext context) {
+		Authentication authentication = context.get(GraphQlContextKeys.AUTHENTICATION);
+		if (authentication == null || !authentication.isAuthenticated()
+				|| !(authentication.getPrincipal() instanceof User user)) {
+			throw new AuthenticationCredentialsNotFoundException("Authentication required");
+		}
+		return user;
+	}
+
+	/** The tenant a request selected and the caller's membership in it. */
+	private record SelectedTenant(UUID id, Optional<MembershipState> membership) {
+	}
+
+	/** Parses the tenant header and loads the membership once per request, caching both. */
+	private SelectedTenant resolveTenant(GraphQLContext context, User user) {
+		SelectedTenant cached = context.get(GraphQlContextKeys.SELECTED_TENANT);
+		if (cached != null) {
+			return cached;
+		}
+
+		String header = context.get(GraphQlContextKeys.TENANT_HEADER);
+		if (header == null || header.isBlank()) {
+			throw new AuthenticationCredentialsNotFoundException(
+					"Missing required header: " + TenantValidationInterceptor.TENANT_ID_HEADER);
+		}
+
+		UUID tenantId;
+		try {
+			tenantId = UUID.fromString(header);
+		} catch (IllegalArgumentException e) {
+			throw new IllegalArgumentException(
+					"Invalid UUID format for header: " + TenantValidationInterceptor.TENANT_ID_HEADER);
+		}
+
+		var selected = new SelectedTenant(tenantId, accessChecker.findMembership(tenantId, user.getId()));
+		context.put(GraphQlContextKeys.SELECTED_TENANT, selected);
+		return selected;
+	}
+}

@@ -1,5 +1,6 @@
 package com.example.demo.tenant.domain;
 
+import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
@@ -22,6 +23,8 @@ public class Tenant extends BaseEntity {
 
 	private String name;
 
+	private Instant inactivatedAt;
+
 	@OneToMany(mappedBy = "tenant")
 	private Set<TenantInvitation> invitations;
 
@@ -41,6 +44,25 @@ public class Tenant extends BaseEntity {
 
 	public String getName() {
 		return name;
+	}
+
+	public Instant getInactivatedAt() {
+		return inactivatedAt;
+	}
+
+	public boolean isActive() {
+		return inactivatedAt == null;
+	}
+
+	/** An inactive tenant rejects every tenant-aware operation except reactivation. */
+	public void inactivate() {
+		if (isActive()) {
+			this.inactivatedAt = Instant.now();
+		}
+	}
+
+	public void reactivate() {
+		this.inactivatedAt = null;
 	}
 
 	public void setName(String name) {

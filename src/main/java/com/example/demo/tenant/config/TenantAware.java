@@ -10,4 +10,7 @@ import java.lang.annotation.Target;
 @Retention(RUNTIME)
 public @interface TenantAware {
 	String[] withPermissions() default {};
+
+	/** Only operations that bring an inactive tenant back (reactivation) should set this. */
+	boolean allowInactiveTenant() default false;
 }

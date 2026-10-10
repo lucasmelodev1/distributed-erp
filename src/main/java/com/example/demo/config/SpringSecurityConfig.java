@@ -65,7 +65,9 @@ public class SpringSecurityConfig {
 								"/api/v1/auth/reset-password",
 								"/v3/api-docs/**",
 								"/swagger-ui/**",
-								"/scalar/**")
+								"/scalar/**",
+								"/graphql",
+								"/graphiql/**")
 						.permitAll()
 						.anyRequest().authenticated())
 				.build();

@@ -18,6 +18,10 @@ spring:
         jdbc:
           time_zone: UTC
     open-in-view: false
+  graphql:
+    schema:
+      introspection:
+        enabled: false
   data:
     redis:
       host: ${SPRING_REDIS_HOST:localhost}
@@ -39,6 +43,10 @@ spring:
           auth: true
           starttls:
             enable: true
+app:
+  graphql:
+    max-depth: 10
+    max-complexity: 200
 server:
   servlet:
     session:
@@ -81,6 +89,12 @@ spring:
   config:
     activate:
       on-profile: dev
+  graphql:
+    graphiql:
+      enabled: true
+    schema:
+      introspection:
+        enabled: true
 springdoc:
   swagger-ui:
     enabled: false

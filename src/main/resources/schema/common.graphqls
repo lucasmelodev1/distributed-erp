@@ -1,0 +1,20 @@
+"""An RFC 4122 UUID, e.g. 018f3c1e-7b2a-7c4e-9d3a-2b1f6a8c0d4e."""
+scalar UUID
+
+"""An ISO-8601 instant in UTC, e.g. 2026-10-10T12:00:00Z."""
+scalar DateTime
+
+"""
+Pagination state of a connection. Lists are ordered by creation time and paged forward with first/after.
+"""
+type PageInfo {
+	hasNextPage: Boolean!
+	hasPreviousPage: Boolean!
+	startCursor: String
+	endCursor: String
+}
+
+type Query {
+	"""Always returns true. Use it to check that the GraphQL endpoint is reachable."""
+	ping: Boolean!
+}

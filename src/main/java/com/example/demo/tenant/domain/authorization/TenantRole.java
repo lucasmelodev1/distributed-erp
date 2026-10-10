@@ -1,5 +1,6 @@
 package com.example.demo.tenant.domain.authorization;
 
+import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
@@ -23,6 +24,8 @@ public class TenantRole extends BaseEntity {
 	private UUID tenantId;
 
 	private String name;
+
+	private Instant inactivatedAt;
 
 	@OneToMany(mappedBy = "role", orphanRemoval = true, cascade = jakarta.persistence.CascadeType.ALL, fetch = FetchType.LAZY)
 	@JsonIgnore
@@ -48,6 +51,25 @@ public class TenantRole extends BaseEntity {
 
 	public String getName() {
 		return name;
+	}
+
+	public Instant getInactivatedAt() {
+		return inactivatedAt;
+	}
+
+	public boolean isActive() {
+		return inactivatedAt == null;
+	}
+
+	/** An inactive role stays assigned to its holders but grants no permissions. */
+	public void inactivate() {
+		if (isActive()) {
+			this.inactivatedAt = Instant.now();
+		}
+	}
+
+	public void reactivate() {
+		this.inactivatedAt = null;
 	}
 
 	public void setName(String name) {

@@ -12,9 +12,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import com.example.demo.tenant.domain.TenantUserId;
-import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository;
-import com.example.demo.tenant.adapter.outbound.persistence.PermissionCheckRepository;
 import com.example.demo.user.domain.User;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,13 +23,10 @@ public class TenantValidationInterceptor implements HandlerInterceptor {
 	public static final String TENANT_ID_HEADER = "X-Tenant-Id";
 	private static final String AUTH_PATH_PREFIX = "/api/v1/auth/";
 
-	private final TenantUserRepository tenantUserRepository;
-	private final PermissionCheckRepository permissionCheckRepository;
+	private final TenantAccessChecker accessChecker;
 
-	public TenantValidationInterceptor(TenantUserRepository tenantUserRepository,
-			PermissionCheckRepository permissionCheckRepository) {
-		this.tenantUserRepository = tenantUserRepository;
-		this.permissionCheckRepository = permissionCheckRepository;
+	public TenantValidationInterceptor(TenantAccessChecker accessChecker) {
+		this.accessChecker = accessChecker;
 	}
 
 	@Override
@@ -72,27 +66,19 @@ public class TenantValidationInterceptor implements HandlerInterceptor {
 			return false;
 		}
 
-		TenantUserId tenantUserId = new TenantUserId(tenantId, user.getId());
-		if (!tenantUserRepository.existsById(tenantUserId)) {
-			log.info("User={} is not a member of tenant={}", user.getId(), tenantId);
-			sendUnauthorized(response, "You are not a member of this tenant");
+		var decision = accessChecker.check(accessChecker.findMembership(tenantId, user.getId()), tenantId,
+				user.getId(), tenantAware);
+		if (!decision.granted()) {
+			log.info("User={} denied in tenant={}: {}", user.getId(), tenantId, decision.message());
+			if (decision.denial() == TenantAccessChecker.Denial.NOT_A_MEMBER) {
+				sendUnauthorized(response, decision.message());
+			} else {
+				sendForbidden(response, decision.message());
+			}
 			return false;
 		}
 
 		TenantContext.setTenantId(tenantId);
-
-		String[] requiredPermissions = tenantAware.withPermissions();
-		if (requiredPermissions.length > 0) {
-			UUID userId = user.getId();
-			for (String permission : requiredPermissions) {
-				if (!permissionCheckRepository.hasPermission(userId, tenantId, permission)) {
-					log.info("User={} lacks permission={} in tenant={}", userId, permission, tenantId);
-					sendForbidden(response, "Missing required permission: " + permission);
-					return false;
-				}
-			}
-		}
-
 		return true;
 	}
 

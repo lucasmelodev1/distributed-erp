@@ -1,0 +1,18 @@
+extend type Query {
+	testAuthenticated: String!
+	testTenant: String!
+	testTenantWithPermission: String!
+	testTenantMissingPermission: String!
+	testNode: TestNode!
+	testUuid(value: UUID!): UUID!
+	testNow: DateTime!
+	testThrowsUnexpected: String!
+	testThrowsNotFound: String!
+	testThrowsIllegalArgument: String!
+	testCurrentTenant: String!
+}
+
+type TestNode {
+	value: String!
+	child: TestNode!
+}
