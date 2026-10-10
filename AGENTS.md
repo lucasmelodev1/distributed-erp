@@ -12,7 +12,7 @@ The project uses Maven Wrapper and requires JDK 25 (`pom.xml` sets `java.version
 ./mvnw clean install                     # clean local build/install
 ```
 
-Tests import `TestcontainersConfiguration`, which starts PostgreSQL, Kafka, Redis, and Grafana containers. Docker must be running for test/verify commands. The optional local stack is `docker compose up` and reads `.env` for the app service; do not commit `.env` or credentials.
+Tests import `TestcontainersConfiguration`, which starts MySQL 8.0, Kafka, Redis, and Grafana containers. Docker must be running for test/verify commands. The optional local stack is `docker compose up` and reads `.env` for the app service; do not commit `.env` or credentials.
 
 ## Structure
 
@@ -56,6 +56,7 @@ Each feature (`tenant`, `user`) uses this internal structure:
 ## Conventions
 
 - Add schema changes as a new `V<timestamp>__<description>.sql` migration; never rely on Hibernate schema updates.
+- Migrations target MySQL 8.0 (Aurora MySQL v3): InnoDB, `utf8mb4` / `utf8mb4_0900_ai_ci`, UUIDs as `BINARY(16)`, timestamps as `DATETIME(6)` stored in UTC, `VARCHAR` (never `TEXT`) for indexed or FK columns, and `ascii_bin` for hashes and codes. No partial or functional indexes. DDL auto-commits, so keep migrations small.
 - Use `@UuidV7Id` for UUID entity IDs. `Permission` uses its string code as its ID; join entities without `updatedAt` do not use the base entities.
 - Use `@SoftDelete(strategy = SoftDeleteType.TIMESTAMP, columnName = "deleted_at")` for soft-deletable entities; do not hard-delete them.
 - Public APIs should always use inactive vs active status rather than soft deleting itself. If an entity does not have an inactivated_at column, ask to add it.

@@ -5,7 +5,7 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.context.annotation.Bean;
 import org.testcontainers.grafana.LgtmStackContainer;
 import org.testcontainers.kafka.KafkaContainer;
-import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import com.redis.testcontainers.RedisContainer;
@@ -33,8 +33,10 @@ public class TestcontainersConfiguration {
 
 	@Bean
 	@ServiceConnection
-	PostgreSQLContainer postgresContainer() {
-		return new PostgreSQLContainer(DockerImageName.parse("postgres:latest"));
+	MySQLContainer mysqlContainer() {
+		return new MySQLContainer(DockerImageName.parse("mysql:8.0"))
+				.withCommand("--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci",
+						"--default-time-zone=+00:00");
 	}
 
 }

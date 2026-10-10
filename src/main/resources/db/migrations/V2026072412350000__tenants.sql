@@ -1,20 +1,22 @@
 CREATE TABLE tenants (
-	id UUID PRIMARY KEY DEFAULT uuidv7(),
+	id BINARY(16) NOT NULL PRIMARY KEY,
 
-	name TEXT NOT NULL,
+	name VARCHAR(255) NOT NULL,
 
-	created_at TIMESTAMPTZ DEFAULT now(),
-	updated_at TIMESTAMPTZ DEFAULT now(),
-	deleted_at TIMESTAMPTZ
-);
+	created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+	updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+	deleted_at DATETIME(6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE tenant_users (
-	user_id UUID REFERENCES users(id),
-	tenant_id UUID REFERENCES tenants(id),
+	user_id BINARY(16) NOT NULL,
+	tenant_id BINARY(16) NOT NULL,
 
-	created_at TIMESTAMPTZ DEFAULT now(),
-	updated_at TIMESTAMPTZ DEFAULT now(),
-	deleted_at TIMESTAMPTZ,
+	created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+	updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+	deleted_at DATETIME(6),
 
-	PRIMARY KEY (user_id, tenant_id)
-);
+	PRIMARY KEY (user_id, tenant_id),
+	CONSTRAINT fk_tenant_users_user FOREIGN KEY (user_id) REFERENCES users(id),
+	CONSTRAINT fk_tenant_users_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

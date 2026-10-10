@@ -1,17 +1,16 @@
 CREATE TABLE auth_tokens (
-	id UUID PRIMARY KEY DEFAULT uuidv7(),
+	id BINARY(16) NOT NULL PRIMARY KEY,
 
-	type TEXT NOT NULL,
-	email TEXT NOT NULL,
-	token_hash TEXT NOT NULL,
-	expires_at TIMESTAMPTZ NOT NULL,
-	consumed_at TIMESTAMPTZ,
-	revoked_at TIMESTAMPTZ,
+	type VARCHAR(32) NOT NULL,
+	email VARCHAR(255) NOT NULL,
+	token_hash VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+	expires_at DATETIME(6) NOT NULL,
+	consumed_at DATETIME(6),
+	revoked_at DATETIME(6),
 
-	created_at TIMESTAMPTZ DEFAULT now()
-);
+	created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE INDEX idx_auth_tokens_token_hash ON auth_tokens(token_hash);
 
-CREATE INDEX idx_auth_tokens_active ON auth_tokens(lower(email), type, expires_at)
-WHERE consumed_at IS NULL AND revoked_at IS NULL;
+CREATE INDEX idx_auth_tokens_active ON auth_tokens(email, type, expires_at);

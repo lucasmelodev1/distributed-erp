@@ -1,19 +1,23 @@
 services:
-  postgres:
-    image: postgres:18
+  mysql:
+    image: mysql:8.0
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
     environment:
-      POSTGRES_DB: demo
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      MYSQL_DATABASE: demo
+      MYSQL_ROOT_PASSWORD: mysql
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - pgdata:/var/lib/postgresql
+      - mysqldata:/var/lib/mysql
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -pmysql --silent" ]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
+      start_period: 20s
   redis:
     image: redis:8.6.5-alpine
     command: redis-server --requirepass password --appendonly yes
@@ -40,7 +44,7 @@ services:
       - "8080:8080"
     env_file: .env
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -49,4 +53,4 @@ services:
 
 volumes:
   redis_data:
-  pgdata:
+  mysqldata:
