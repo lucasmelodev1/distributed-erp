@@ -2,229 +2,53 @@ package com.example.demo.tenant.adapter.inbound;
 
 import com.example.demo.tenant.port.inbound.TenantUserManagementPort;
 
-import com.example.demo.email.EmailService;
-import com.example.demo.utils.EnvUtils;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.data.domain.ScrollPosition;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Window;
+import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRoleRepository.UserRoleRow;
+import com.example.demo.tenant.domain.authorization.TenantRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.tenant.adapter.outbound.persistence.PermissionCheckRepository;
-import com.example.demo.tenant.adapter.outbound.persistence.PermissionRepository;
-import com.example.demo.tenant.adapter.outbound.persistence.TenantRoleRepository;
-import com.example.demo.tenant.adapter.outbound.persistence.TenantRolePermissionRepository;
-import com.example.demo.tenant.domain.authorization.TenantUserRole;
-import com.example.demo.tenant.domain.authorization.TenantUserRoleId;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRoleRepository;
-import com.example.demo.tenant.adapter.web.dto.user.AcceptTenantInvitationRequest;
-import com.example.demo.tenant.adapter.web.dto.user.CheckInvitedUserResponse;
 import com.example.demo.tenant.adapter.web.dto.user.InactivateTenantUserRequest;
-import com.example.demo.tenant.adapter.web.dto.user.InviteUserToTenantRequest;
-import com.example.demo.tenant.adapter.web.dto.user.RevokeInvitationRequest;
 import com.example.demo.tenant.adapter.web.dto.user.UpdateTenantUserRequest;
-import com.example.demo.tenant.adapter.web.dto.user.CheckInvitedUserResponse.CheckInvitedUserNextAction;
 import com.example.demo.tenant.domain.TenantUser;
 import com.example.demo.tenant.domain.TenantUserId;
 import com.example.demo.tenant.domain.TenantUserSpecification;
-import com.example.demo.tenant.adapter.outbound.persistence.TenantInvitationRepository;
-import com.example.demo.tenant.adapter.outbound.persistence.TenantInvitationRoleRepository;
-import com.example.demo.user.domain.User;
-import com.example.demo.user.adapter.outbound.persistence.UserRepository;
-import com.example.demo.tenant.adapter.outbound.persistence.TenantRepository;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.persistence.PersistenceException;
 
 @Service
 public class TenantUserService implements TenantUserManagementPort {
-    private final EnvUtils envUtils;
-    private static final Logger log = LoggerFactory.getLogger(TenantService.class);
-    private final TenantRepository tenantRepository;
+    private static final Logger log = LoggerFactory.getLogger(TenantUserService.class);
     private final TenantUserRepository tenantUserRepository;
     private final TenantUserRoleRepository tenantUserRoleRepository;
-    private final TenantInvitationRepository tenantInvitationRepository;
-    private final TenantInvitationRoleRepository tenantInvitationRoleRepository;
-    private final EmailService emailService;
-    private final UserRepository userRepository;
-
-    @Value("${TENANT_INVITATION_FROM:invitations@example.com}")
-    private String invitationFrom;
-
-    @Value("${FRONTEND_URL:http://localhost:3000}")
-    private String frontendUrl;
+    private final TenantRoleChecks roleChecks;
 
     TenantUserService(
-            TenantRepository tenantRepository,
             TenantUserRepository tenantUserRepository,
-            TenantRoleRepository tenantRoleRepository,
             TenantUserRoleRepository tenantUserRoleRepository,
-            TenantRolePermissionRepository tenantRolePermissionRepository,
-            PermissionCheckRepository permissionCheckRepository,
-            PermissionRepository permissionRepository,
-            TenantInvitationRepository tenantInvitationRepository,
-            TenantInvitationRoleRepository tenantInvitationRoleRepository,
-            EmailService emailService,
-            EnvUtils envUtils,
-            UserRepository userRepository) {
+            TenantRoleChecks roleChecks) {
         this.tenantUserRepository = tenantUserRepository;
-        this.tenantRepository = tenantRepository;
         this.tenantUserRoleRepository = tenantUserRoleRepository;
-        this.tenantInvitationRepository = tenantInvitationRepository;
-        this.tenantInvitationRoleRepository = tenantInvitationRoleRepository;
-        this.emailService = emailService;
-        this.envUtils = envUtils;
-        this.userRepository = userRepository;
-    }
-
-    @Transactional
-    public void inviteUserToTenant(InviteUserToTenantRequest dto, UUID tenantId, User user) {
-        var email = dto.email();
-
-        /**
-         * Checks validity of the request
-         */
-        var existingTenantUser = tenantUserRepository.findByUserEmailAndTenantId(email, tenantId);
-        if (!existingTenantUser.isEmpty()) {
-            log.info("Error inviting user_email={} to tenant={}: User is already a member", dto.email(), tenantId);
-            throw new IllegalArgumentException("User is already a member");
-        }
-
-        /**
-         * Revokes active invitations for this email and tenant
-         */
-        try {
-            tenantInvitationRepository.revokeAllActiveByTenantIdAndUserEmail(tenantId, email);
-            log.info("Revoked invitations for email={} in tenant={}", email, tenantId);
-        } catch (Exception e) {
-            log.warn("Error revoking all invitations for tenant={} and email={}: {}",
-                    tenantId,
-                    email,
-                    e.getMessage(),
-                    e);
-            throw new PersistenceException("Error revoking invitations");
-        }
-
-        var tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new DataIntegrityViolationException("Tenant not found"));
-
-        /**
-         * Creates invitation with correct assigned roles
-         */
-        var inviteUserResponse = tenant.inviteUser(email, dto.tenantRoles());
-        try {
-            tenantRepository.save(tenant);
-        } catch (Exception e) {
-            log.warn("Error creating tenant invitation for tenant={} and email={}: {}",
-                    tenantId,
-                    email,
-                    e.getMessage(),
-                    e);
-            throw e;
-        }
-
-        emailService.sendSimpleMessage(invitationFrom, email,
-                "%s invited you to join them!"
-                        .formatted(tenant.getName()),
-                "%s invited you to join them! Visit the link below to accept it: \n%s/accept-invitation?code=%s"
-                        .formatted(tenant.getName(), frontendUrl, inviteUserResponse.code()));
-
-        if (envUtils.isDevEnvironment()) {
-            System.out.println("Tenant invitation code: " + inviteUserResponse.code());
-        }
-
-        log.info("Sent invitation to email={}.", email);
-    }
-
-    @Transactional
-    public void acceptInvitation(AcceptTenantInvitationRequest dto, User user) {
-        /**
-         * Checks for valid invitations
-         */
-        var invitations = tenantInvitationRepository
-                .findActiveByEmailAndId(user.getEmail(), dto.invitationId());
-        if (invitations.isEmpty()) {
-            log.info("Active invitation={} not found for email={}", dto.invitationId(), user.getEmail());
-            throw new EntityNotFoundException("Invitation not found");
-        }
-        assert (invitations.size() == 1);
-
-        var invitation = invitations.getFirst();
-
-        /**
-         * Creates the tenant user with the correct roles
-         */
-        var tenantUser = new TenantUser(new TenantUserId(invitation.getTenantId(), user.getId()));
-        try {
-            tenantUserRepository.save(tenantUser);
-        } catch (Exception e) {
-            log.warn("Error creating new tenant user for tenant={} and user={}: {}",
-                    invitation.getTenantId(),
-                    user.getId(),
-                    e.getMessage(),
-                    e);
-            throw e;
-        }
-
-        List<TenantUserRole> tenantUserRoles = tenantInvitationRoleRepository
-                .findByIdTenantInvitationId(invitation.getId())
-                .stream()
-                .map(invitationRole -> new TenantUserRole(
-                        new TenantUserRoleId(user.getId(), invitation.getTenantId(), invitationRole.getId().roleId())))
-                .toList();
-        try {
-            tenantUserRoleRepository.saveAll(tenantUserRoles);
-        } catch (Exception e) {
-            log.warn("Error batch saving tenant user roles for tenant={} and user={}: {}",
-                    invitation.getTenantId(),
-                    user.getId(),
-                    e.getMessage(),
-                    e);
-            throw e;
-        }
-
-        /**
-         * Accept invitation
-         */
-        invitation.consume();
-        tenantInvitationRepository.save(invitation);
-
-        log.info("User={} accepted invitation to tenant={}", user.getId(), invitation.getTenantId());
-    }
-
-    @Transactional(readOnly = true)
-    public CheckInvitedUserResponse checkInvitedUser(UUID invitationId) {
-        var invitationQueryResult = tenantInvitationRepository.findById(invitationId);
-        if (invitationQueryResult.isEmpty() || !invitationQueryResult.get().isValid()) {
-            log.info("Invitation={} not found", invitationId);
-            throw new EntityNotFoundException("Invitation not found");
-        }
-
-        var invitation = invitationQueryResult.get();
-        var existingUser = userRepository.findByEmail(invitation.getEmail());
-
-        if (existingUser.isPresent()) {
-            return new CheckInvitedUserResponse(CheckInvitedUserNextAction.LOGIN);
-        } else {
-            return new CheckInvitedUserResponse(CheckInvitedUserNextAction.CREATE_ACCOUNT);
-        }
-    }
-
-    @Transactional
-    public void revokeInvitation(RevokeInvitationRequest dto, UUID tenantId) {
-        tenantInvitationRepository.revokeByIdAndTenantId(dto.invitationId(), tenantId);
+        this.roleChecks = roleChecks;
     }
 
     @Transactional(readOnly = true)
@@ -238,12 +62,41 @@ public class TenantUserService implements TenantUserManagementPort {
     }
 
     @Transactional(readOnly = true)
+    public Window<TenantUser> scrollTenantUsers(@Nullable String query, @Nullable Boolean active, int limit,
+            @Nullable UUID after, UUID tenantId) {
+        var spec = Specification.allOf(
+                TenantUserSpecification.hasActiveStatus(active),
+                TenantUserSpecification.hasTenantId(tenantId),
+                TenantUserSpecification.hasUserName(query));
+        var rows = tenantUserRepository.findBy(
+                spec.and(TenantUserSpecification.isAfterUser(after)),
+                q -> q.sortBy(Sort.by("id.userId")).limit(limit + 1).all());
+        boolean hasNext = rows.size() > limit;
+        return Window.from(new java.util.ArrayList<>(hasNext ? rows.subList(0, limit) : rows),
+                ScrollPosition::offset, hasNext);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<UUID, List<TenantRole>> findRolesByUserIds(Collection<UUID> userIds, UUID tenantId) {
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        return tenantUserRoleRepository.findRolesByUserIds(userIds, tenantId).stream()
+                .collect(Collectors.groupingBy(UserRoleRow::userId,
+                        Collectors.mapping(UserRoleRow::role, Collectors.toList())));
+    }
+
+    @Transactional(readOnly = true)
     public Optional<TenantUser> findTenantUserById(UUID userId, UUID tenantId) {
         return tenantUserRepository.findById(new TenantUserId(tenantId, userId));
     }
 
     @Transactional
-    public void updateTenantUserActiveStatus(UUID userId, InactivateTenantUserRequest dto, UUID tenantId) {
+    public void updateTenantUserActiveStatus(UUID actorId, UUID userId, InactivateTenantUserRequest dto,
+            UUID tenantId) {
+        if (!dto.active() && actorId.equals(userId)) {
+            throw new IllegalArgumentException("You cannot inactivate yourself");
+        }
         var tenantUserId = new TenantUserId(tenantId, userId);
         var tenantUserQueryResult = tenantUserRepository.findById(tenantUserId);
         if (tenantUserQueryResult.isEmpty()) {
@@ -265,6 +118,18 @@ public class TenantUserService implements TenantUserManagementPort {
     }
 
     @Transactional
+    public void removeTenantUser(UUID actorId, UUID userId, UUID tenantId) {
+        if (actorId.equals(userId)) {
+            throw new IllegalArgumentException("You cannot remove yourself");
+        }
+        var tenantUser = tenantUserRepository.findById(new TenantUserId(tenantId, userId))
+                .orElseThrow(() -> new EntityNotFoundException("Tenant user not found"));
+        // Soft delete; the cascade also removes the role assignments, so a returning member starts clean.
+        tenantUserRepository.delete(tenantUser);
+        log.info("Removed user={} from tenant={}", userId, tenantId);
+    }
+
+    @Transactional
     public void updateTenantUser(UUID userId, UpdateTenantUserRequest dto, UUID tenantId) {
         var tenantUserQueryResult = tenantUserRepository.findById(new TenantUserId(tenantId, userId));
         if (tenantUserQueryResult.isEmpty()) {
@@ -273,12 +138,8 @@ public class TenantUserService implements TenantUserManagementPort {
         }
 
         var tenantUser = tenantUserQueryResult.get();
-        Set<TenantUserRole> tenantUserRoles = dto
-                .tenantRoleIds()
-                .stream()
-                .map(tenantRoleId -> new TenantUserRole(new TenantUserRoleId(userId, tenantId, tenantRoleId)))
-                .collect(Collectors.toSet());
-        tenantUser.setRoles(tenantUserRoles);
+        roleChecks.requireRolesOfTenant(dto.tenantRoleIds(), tenantId);
+        tenantUser.replaceRoles(dto.tenantRoleIds());
 
         try {
             tenantUserRepository.save(tenantUser);

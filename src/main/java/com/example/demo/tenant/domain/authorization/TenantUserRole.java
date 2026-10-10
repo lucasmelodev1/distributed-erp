@@ -41,6 +41,11 @@ public class TenantUserRole {
 		this.id = id;
 	}
 
+	public TenantUserRole(TenantUserRoleId id, TenantUser tenantUser) {
+		this.id = id;
+		this.tenantUser = tenantUser;
+	}
+
 	public TenantUserRole() {
 	}
 

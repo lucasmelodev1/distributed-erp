@@ -1,0 +1,79 @@
+"""A user's membership in a tenant, with the roles it holds there."""
+type TenantUser {
+	"""The member's profile. Null if the user account no longer exists."""
+	user: User
+	roles: [TenantRole!]!
+	active: Boolean!
+	inactivatedAt: DateTime
+	createdAt: DateTime
+	updatedAt: DateTime
+}
+
+type TenantUserConnection {
+	edges: [TenantUserEdge!]!
+	pageInfo: PageInfo!
+}
+
+type TenantUserEdge {
+	node: TenantUser!
+	cursor: String!
+}
+
+extend type Query {
+	"""
+	Members of the tenant selected by X-Tenant-Id, ordered by user creation time. Requires the tenant_users:read permission.
+	"""
+	tenantUsers(
+		"""Page size, 1 to 100."""
+		first: Int = 20
+		"""Return the members after this cursor (a pageInfo.endCursor)."""
+		after: String
+		"""Only members whose name contains this text, ignoring case."""
+		query: String
+		"""true for active members only, false for inactive ones only, omitted for both."""
+		active: Boolean
+	): TenantUserConnection!
+
+	"""
+	A member of the tenant selected by X-Tenant-Id, or null if the user is not a member. Requires the tenant_users:read permission.
+	"""
+	tenantUser(userId: UUID!): TenantUser
+}
+
+extend type Mutation {
+	"""Replaces the roles of a member. Requires the tenant_users:update permission."""
+	updateTenantUser(input: UpdateTenantUserInput!): UpdateTenantUserPayload!
+
+	"""
+	Removes a member from the tenant selected by X-Tenant-Id, together with their role assignments. They lose access immediately and can rejoin through a new invitation. You cannot remove yourself. Requires the tenants:expel permission.
+	"""
+	removeTenantUser(input: TenantUserIdInput!): RemoveTenantUserPayload!
+
+	"""Requires the tenant_users:inactivate permission."""
+	inactivateTenantUser(input: TenantUserIdInput!): TenantUserPayload!
+
+	"""Requires the tenant_users:inactivate permission."""
+	reactivateTenantUser(input: TenantUserIdInput!): TenantUserPayload!
+}
+
+input UpdateTenantUserInput {
+	userId: UUID!
+	"""Must all be roles of this tenant."""
+	tenantRoleIds: [UUID!]!
+}
+
+type UpdateTenantUserPayload {
+	tenantUser: TenantUser!
+}
+
+input TenantUserIdInput {
+	userId: UUID!
+}
+
+type RemoveTenantUserPayload {
+	removedUserId: UUID!
+}
+
+type TenantUserPayload {
+	tenantUser: TenantUser!
+}
