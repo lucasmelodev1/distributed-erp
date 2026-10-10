@@ -50,6 +50,11 @@ class GraphQlAccessInstrumentation extends SimplePerformantInstrumentation {
 		if (parameters.getExecutionStepInfo().getPath().getLevel() != 1) {
 			return dataFetcher;
 		}
+		// Introspection fields (__schema, __type, __typename) are not operations; whether
+		// they work at all is decided by spring.graphql.schema.introspection.enabled.
+		if (parameters.getField().getName().startsWith("__")) {
+			return dataFetcher;
+		}
 		return environment -> {
 			try {
 				authorize(environment);

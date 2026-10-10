@@ -157,6 +157,14 @@ class GraphQlInfrastructureTest extends BaseGraphQlTest {
 	}
 
 	@Test
+	void introspectionFields_areNotSubjectToDefaultDeny() {
+		query("{ __typename }", null, null)
+				.expectBody()
+				.jsonPath("$.errors").doesNotExist()
+				.jsonPath("$.data.__typename").isEqualTo("Query");
+	}
+
+	@Test
 	void formEncodedPost_isRejected() {
 		restClient.post()
 				.uri("/graphql")
