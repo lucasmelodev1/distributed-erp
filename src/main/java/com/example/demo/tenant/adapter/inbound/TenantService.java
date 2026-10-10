@@ -135,7 +135,7 @@ public class TenantService implements TenantManagementPort {
 	}
 
 	@Transactional
-	public void updateTenant(UpdateTenantRequest dto, UUID tenantId) {
+	public Tenant updateTenant(UpdateTenantRequest dto, UUID tenantId) {
 		var tenantQueryResult = tenantRepository.findById(tenantId);
 		if (tenantQueryResult.isEmpty()) {
 			log.info("Tenant not found. tenant={}", tenantId);
@@ -144,11 +144,24 @@ public class TenantService implements TenantManagementPort {
 		var tenant = tenantQueryResult.get();
 		tenant.setName(dto.name());
 		try {
-			tenantRepository.save(tenant);
+			return tenantRepository.save(tenant);
 		} catch (Exception e) {
 			log.info("Error updating tenant={} for name={}: {}", tenant.getId(), dto.name(), e.getMessage(), e);
 			throw e;
 		}
+	}
+
+	@Transactional
+	public Tenant setTenantActive(UUID tenantId, boolean active) {
+		var tenant = tenantRepository.findById(tenantId)
+				.orElseThrow(() -> new EntityNotFoundException("Tenant not found"));
+		if (active) {
+			tenant.reactivate();
+		} else {
+			tenant.inactivate();
+		}
+		log.info("Tenant={} is now {}", tenantId, active ? "active" : "inactive");
+		return tenantRepository.save(tenant);
 	}
 
 	@Transactional

@@ -1,0 +1,66 @@
+"""An isolated workspace that owns users, roles and data."""
+type Tenant {
+	id: UUID!
+	name: String!
+	"""An inactive tenant rejects every operation except reactivateTenant."""
+	active: Boolean!
+	inactivatedAt: DateTime
+	createdAt: DateTime
+	updatedAt: DateTime
+}
+
+extend type Query {
+	"""The tenants the authenticated user is a member of."""
+	myTenants: [Tenant!]!
+
+	"""
+	The tenant selected by the X-Tenant-Id header. The user must be a member of it.
+	"""
+	currentTenant: Tenant!
+}
+
+extend type Mutation {
+	"""
+	Creates a tenant, makes the authenticated user its first member and gives them an Admin role with every permission.
+	"""
+	createTenant(input: CreateTenantInput!): CreateTenantPayload!
+
+	"""
+	Renames the tenant selected by X-Tenant-Id. Requires the tenants:update permission.
+	"""
+	updateTenant(input: UpdateTenantInput!): UpdateTenantPayload!
+
+	"""
+	Inactivates the tenant selected by X-Tenant-Id: all its members lose access until it is reactivated. Requires the tenants:inactivate permission.
+	"""
+	inactivateTenant: InactivateTenantPayload!
+
+	"""
+	Reactivates the tenant selected by X-Tenant-Id. Allowed while the tenant is inactive. Requires the tenants:inactivate permission.
+	"""
+	reactivateTenant: ReactivateTenantPayload!
+}
+
+input CreateTenantInput {
+	name: String!
+}
+
+type CreateTenantPayload {
+	tenant: Tenant!
+}
+
+input UpdateTenantInput {
+	name: String!
+}
+
+type UpdateTenantPayload {
+	tenant: Tenant!
+}
+
+type InactivateTenantPayload {
+	tenant: Tenant!
+}
+
+type ReactivateTenantPayload {
+	tenant: Tenant!
+}

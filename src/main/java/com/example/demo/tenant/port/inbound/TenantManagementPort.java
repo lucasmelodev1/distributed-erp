@@ -12,7 +12,8 @@ import com.example.demo.tenant.domain.Tenant;
 public interface TenantManagementPort {
     List<Tenant> findAllUserTenants(UUID userId);
     CreateTenantResponse createTenant(CreateTenantRequest dto, UUID userId);
-    void updateTenant(UpdateTenantRequest dto, UUID tenantId);
+    Tenant updateTenant(UpdateTenantRequest dto, UUID tenantId);
     void deleteTenant(UUID tenantId);
+    Tenant setTenantActive(UUID tenantId, boolean active);
     Optional<Tenant> findTenantById(UUID tenantId);
 }
