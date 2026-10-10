@@ -95,7 +95,7 @@ public class AuthService implements AuthPort {
 		AuthToken req = new AuthToken(email, tokenHash, type);
 		authTokenRepository.save(req);
 
-		return new GenerateAndSaveTokenResponse(req.getId(), tokenHash);
+		return new GenerateAndSaveTokenResponse(req.getId(), token);
 	}
 
 	private AuthToken consumeToken(String token, AuthTokenType type) {

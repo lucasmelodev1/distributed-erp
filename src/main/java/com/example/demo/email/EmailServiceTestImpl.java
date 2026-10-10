@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.mail.SimpleMailMessage;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import io.micrometer.observation.annotation.Observed;
@@ -18,7 +17,13 @@ import jakarta.mail.MessagingException;
 public class EmailServiceTestImpl implements EmailService {
 	private static final Logger log = LoggerFactory.getLogger(EmailServiceTestImpl.class);
 
-	@Async
+	private final SentEmails sentEmails;
+
+	public EmailServiceTestImpl(SentEmails sentEmails) {
+		this.sentEmails = sentEmails;
+	}
+
+	/** Synchronous (unlike the real service) so tests can read the email right after the call. */
 	@Override
 	@Observed(name = "email.send-simple-message")
 	public void sendSimpleMessage(
@@ -31,10 +36,10 @@ public class EmailServiceTestImpl implements EmailService {
 		message.setTo(to);
 		message.setSubject(subject);
 		message.setText(text);
-		log.info("Sending email from={} to={} subject={} text={}", from, to, subject, text);
+		log.info("Sending email from={} to={} subject={}", from, to, subject);
+		sentEmails.record(new SentEmails.SentEmail(from, to, subject, text));
 	}
 
-	@Async
 	@Override
 	@Observed(name = "email.send-message-with-attachment")
 	public void sendMessageWithAttachment(

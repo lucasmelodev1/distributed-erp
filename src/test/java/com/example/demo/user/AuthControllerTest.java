@@ -8,6 +8,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.example.demo.BaseControllerTest;
+import com.example.demo.user.domain.AuthToken;
 import com.example.demo.user.domain.User;
 import com.example.demo.user.adapter.web.dto.auth.CreateUserByAuthTokenRequest;
 import com.example.demo.user.adapter.web.dto.user.FindMeResponse;
@@ -43,13 +44,17 @@ class AuthControllerTest extends BaseControllerTest {
 				.exchange()
 				.expectStatus().isOk()
 				.expectBody(RequestEmailVerificationResponse.class);
-		post("/register-verify-email")
-				.body(new VerifyEmailRequest(tokenService.generate()))
+		var emailedToken = sentEmails.lastTextTo(exampleEmail);
+		assert emailedToken.length() == AuthToken.TOKEN_SIZE;
+		var verifyEmailResponse = post("/register-verify-email")
+				.body(new VerifyEmailRequest(emailedToken))
 				.exchange()
 				.expectStatus().isOk()
-				.expectBody(VerifyEmailResponse.class);
+				.expectBody(VerifyEmailResponse.class)
+				.returnResult().getResponseBody();
+		assert verifyEmailResponse != null && verifyEmailResponse.token().length() == AuthToken.TOKEN_SIZE;
 		post("/register-create-user")
-				.body(new CreateUserByAuthTokenRequest(exampleName, tokenService.generate(),
+				.body(new CreateUserByAuthTokenRequest(exampleName, verifyEmailResponse.token(),
 						examplePassword))
 				.exchange()
 				.expectStatus().isOk()
@@ -97,14 +102,17 @@ class AuthControllerTest extends BaseControllerTest {
 				.body(new RequestEmailVerificationRequest(exampleEmail))
 				.exchange()
 				.expectStatus().isOk();
-		post("/verify-reset-password")
-				.body(new VerifyEmailRequest(tokenService.generate()))
+		var resetEmailedToken = sentEmails.lastTextTo(exampleEmail);
+		var verifyResetResponse = post("/verify-reset-password")
+				.body(new VerifyEmailRequest(resetEmailedToken))
 				.exchange()
 				.expectStatus().isOk()
-				.expectBody(VerifyResetPasswordResponse.class);
+				.expectBody(VerifyResetPasswordResponse.class)
+				.returnResult().getResponseBody();
+		assert verifyResetResponse != null && verifyResetResponse.token().length() == AuthToken.TOKEN_SIZE;
 		var newPassword = "NewPassword@123";
 		post("/reset-password")
-				.body(new ResetPasswordRequest(exampleEmail, tokenService.generate(), newPassword))
+				.body(new ResetPasswordRequest(exampleEmail, verifyResetResponse.token(), newPassword))
 				.exchange()
 				.expectStatus().isOk();
 

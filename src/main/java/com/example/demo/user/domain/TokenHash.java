@@ -1,5 +1,6 @@
 package com.example.demo.user.domain;
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -13,7 +14,7 @@ public record TokenHash(String value) {
         }
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(plaintext.getBytes());
+            byte[] hashBytes = digest.digest(plaintext.getBytes(StandardCharsets.UTF_8));
             return new TokenHash(bytesToHex(hashBytes));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);

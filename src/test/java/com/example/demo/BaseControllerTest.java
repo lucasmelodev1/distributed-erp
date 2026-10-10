@@ -1,5 +1,6 @@
 package com.example.demo;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
@@ -10,8 +11,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.client.RestTestClient;
+import com.example.demo.email.SentEmails;
 import com.example.demo.tenant.domain.Tenant;
 import com.example.demo.tenant.config.TenantValidationInterceptor;
+import com.example.demo.user.adapter.outbound.persistence.AuthTokenRepository;
 import com.example.demo.user.adapter.outbound.persistence.UserRepository;
 import com.example.demo.user.adapter.inbound.UserService;
 import com.example.demo.user.adapter.web.dto.user.CreateUserRequest;
@@ -34,11 +37,27 @@ public abstract class BaseControllerTest {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private AuthTokenRepository authTokenRepository;
+
+    @Autowired
+    protected SentEmails sentEmails;
+
     protected final String baseUrl;
 
     protected static final String SESSION_NAME = "SESSION";
     protected static final String TENANT_HEADER = TenantValidationInterceptor.TENANT_ID_HEADER;
     protected static final String TEST_PASSWORD = "Password@123";
+
+    /**
+     * In the test profile every generated token is the same value, so tokens left
+     * over by other test classes sharing the database would make lookups ambiguous.
+     */
+    @BeforeEach
+    void clearAuthTokens() {
+        authTokenRepository.deleteAll();
+        sentEmails.clear();
+    }
 
     private String getFormattedUri(String uri) {
         return "%s%s".formatted(baseUrl, uri);
