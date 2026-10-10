@@ -7,8 +7,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 
 import com.example.demo.config.graphql.GraphQlInputValidator;
 import com.example.demo.config.graphql.GraphQlRequestContext;
-import com.example.demo.tenant.adapter.web.dto.tenant.CreateTenantRequest;
-import com.example.demo.tenant.adapter.web.dto.tenant.UpdateTenantRequest;
+import com.example.demo.tenant.adapter.web.dto.tenant.CreateTenantInput;
+import com.example.demo.tenant.adapter.web.dto.tenant.UpdateTenantInput;
 import com.example.demo.tenant.config.TenantAware;
 import com.example.demo.tenant.config.TenantContext;
 import com.example.demo.tenant.domain.Tenant;
@@ -42,17 +42,15 @@ public class TenantDataFetcher {
 	}
 
 	@DgsMutation
-	public Map<String, Object> createTenant(@InputArgument CreateTenantRequest input,
+	public Map<String, Object> createTenant(@InputArgument CreateTenantInput input,
 			DgsDataFetchingEnvironment dfe) {
-		var created = tenantService.createTenant(validator.validate(input),
-				GraphQlRequestContext.currentUser(dfe).getId());
-		var tenant = tenantService.findTenantById(created.id()).orElseThrow();
-		return Map.of("tenant", tenant);
+		return Map.of("tenant", tenantService.createTenant(validator.validate(input),
+				GraphQlRequestContext.currentUser(dfe).getId()));
 	}
 
 	@TenantAware(withPermissions = "tenants:update")
 	@DgsMutation
-	public Map<String, Object> updateTenant(@InputArgument UpdateTenantRequest input) {
+	public Map<String, Object> updateTenant(@InputArgument UpdateTenantInput input) {
 		var tenant = tenantService.updateTenant(validator.validate(input), TenantContext.getTenantId());
 		return Map.of("tenant", tenant);
 	}

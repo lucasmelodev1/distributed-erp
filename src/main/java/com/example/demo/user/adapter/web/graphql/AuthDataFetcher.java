@@ -5,18 +5,18 @@ import java.util.Map;
 import com.example.demo.config.graphql.GraphQlInputValidator;
 import com.example.demo.config.graphql.GraphQlRequestContext;
 import com.example.demo.config.graphql.PublicOperation;
-import com.example.demo.user.adapter.web.dto.auth.CreateUserByAuthTokenRequest;
-import com.example.demo.user.adapter.web.dto.auth.LoginRequest;
-import com.example.demo.user.adapter.web.dto.auth.LoginResponse;
-import com.example.demo.user.adapter.web.dto.auth.RequestEmailVerificationRequest;
-import com.example.demo.user.adapter.web.dto.auth.RequestEmailVerificationResponse;
-import com.example.demo.user.adapter.web.dto.auth.RequestResetPasswordRequest;
-import com.example.demo.user.adapter.web.dto.auth.RequestResetPasswordResponse;
-import com.example.demo.user.adapter.web.dto.auth.ResetPasswordRequest;
-import com.example.demo.user.adapter.web.dto.auth.VerifyEmailRequest;
-import com.example.demo.user.adapter.web.dto.auth.VerifyEmailResponse;
-import com.example.demo.user.adapter.web.dto.auth.VerifyPasswordResetRequestRequest;
-import com.example.demo.user.adapter.web.dto.auth.VerifyResetPasswordResponse;
+import com.example.demo.user.adapter.web.dto.auth.RegisterUserInput;
+import com.example.demo.user.adapter.web.dto.auth.LoginInput;
+import com.example.demo.user.adapter.web.dto.auth.LoginPayload;
+import com.example.demo.user.adapter.web.dto.auth.RequestEmailVerificationInput;
+import com.example.demo.user.adapter.web.dto.auth.RequestEmailVerificationPayload;
+import com.example.demo.user.adapter.web.dto.auth.RequestPasswordResetInput;
+import com.example.demo.user.adapter.web.dto.auth.RequestPasswordResetPayload;
+import com.example.demo.user.adapter.web.dto.auth.ResetPasswordInput;
+import com.example.demo.user.adapter.web.dto.auth.VerifyEmailInput;
+import com.example.demo.user.adapter.web.dto.auth.VerifyEmailPayload;
+import com.example.demo.user.adapter.web.dto.auth.VerifyPasswordResetInput;
+import com.example.demo.user.adapter.web.dto.auth.VerifyPasswordResetPayload;
 import com.example.demo.user.port.inbound.AuthPort;
 import com.netflix.graphql.dgs.DgsComponent;
 import com.netflix.graphql.dgs.DgsDataFetchingEnvironment;
@@ -35,20 +35,20 @@ public class AuthDataFetcher {
 
 	@PublicOperation
 	@DgsMutation
-	public RequestEmailVerificationResponse requestEmailVerification(
-			@InputArgument RequestEmailVerificationRequest input) {
+	public RequestEmailVerificationPayload requestEmailVerification(
+			@InputArgument RequestEmailVerificationInput input) {
 		return authService.requestEmailVerification(validator.validate(input));
 	}
 
 	@PublicOperation
 	@DgsMutation
-	public VerifyEmailResponse verifyEmail(@InputArgument VerifyEmailRequest input) {
+	public VerifyEmailPayload verifyEmail(@InputArgument VerifyEmailInput input) {
 		return authService.verifyEmail(validator.validate(input));
 	}
 
 	@PublicOperation
 	@DgsMutation
-	public LoginResponse registerUser(@InputArgument("input") CreateUserByAuthTokenRequest input,
+	public LoginPayload registerUser(@InputArgument("input") RegisterUserInput input,
 			DgsDataFetchingEnvironment dfe) {
 		return authService.createUserByAuthToken(validator.validate(input),
 				GraphQlRequestContext.httpRequest(dfe), GraphQlRequestContext.httpResponse(dfe));
@@ -56,7 +56,7 @@ public class AuthDataFetcher {
 
 	@PublicOperation
 	@DgsMutation
-	public LoginResponse login(@InputArgument LoginRequest input, DgsDataFetchingEnvironment dfe) {
+	public LoginPayload login(@InputArgument LoginInput input, DgsDataFetchingEnvironment dfe) {
 		return authService.login(validator.validate(input),
 				GraphQlRequestContext.httpRequest(dfe), GraphQlRequestContext.httpResponse(dfe));
 	}
@@ -69,19 +69,19 @@ public class AuthDataFetcher {
 
 	@PublicOperation
 	@DgsMutation
-	public RequestResetPasswordResponse requestPasswordReset(@InputArgument RequestResetPasswordRequest input) {
+	public RequestPasswordResetPayload requestPasswordReset(@InputArgument RequestPasswordResetInput input) {
 		return authService.requestResetPassword(validator.validate(input));
 	}
 
 	@PublicOperation
 	@DgsMutation
-	public VerifyResetPasswordResponse verifyPasswordReset(@InputArgument VerifyPasswordResetRequestRequest input) {
+	public VerifyPasswordResetPayload verifyPasswordReset(@InputArgument VerifyPasswordResetInput input) {
 		return authService.verifyPasswordResetToken(validator.validate(input));
 	}
 
 	@PublicOperation
 	@DgsMutation
-	public Map<String, Object> resetPassword(@InputArgument ResetPasswordRequest input) {
+	public Map<String, Object> resetPassword(@InputArgument ResetPasswordInput input) {
 		authService.resetPassword(validator.validate(input));
 		return Map.of("success", true);
 	}

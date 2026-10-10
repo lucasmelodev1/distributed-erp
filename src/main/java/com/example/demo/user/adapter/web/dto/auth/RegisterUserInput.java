@@ -6,7 +6,7 @@ import com.example.demo.user.domain.User;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public record CreateUserByAuthTokenRequest(
+public record RegisterUserInput(
 		@Size(max = User.NAME_MAX_SIZE) @NotBlank String name,
 		@Size(min = AuthToken.TOKEN_SIZE, max = AuthToken.TOKEN_SIZE) @NotBlank String token,
 		@Size(min = User.PASSWORD_MIN_SIZE, max = User.PASSWORD_MAX_SIZE) @NotBlank String password) {

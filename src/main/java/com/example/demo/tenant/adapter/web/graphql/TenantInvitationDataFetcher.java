@@ -21,8 +21,8 @@ import com.example.demo.tenant.domain.authorization.TenantRole;
 import com.example.demo.tenant.domain.invitation.TenantInvitation;
 import com.example.demo.tenant.port.inbound.TenantInvitationPort;
 import com.example.demo.tenant.port.inbound.TenantInvitationPort.InvitationCheck;
-import com.example.demo.user.adapter.web.dto.auth.LoginRequest;
-import com.example.demo.user.adapter.web.dto.auth.LoginResponse;
+import com.example.demo.user.adapter.web.dto.auth.LoginInput;
+import com.example.demo.user.adapter.web.dto.auth.LoginPayload;
 import com.example.demo.user.port.inbound.AuthPort;
 import com.netflix.graphql.dgs.DgsComponent;
 import com.netflix.graphql.dgs.DgsData;
@@ -93,11 +93,11 @@ public class TenantInvitationDataFetcher {
 
 	@PublicOperation
 	@DgsMutation
-	public LoginResponse registerUserFromInvitation(@InputArgument RegisterUserFromInvitationInput input,
+	public LoginPayload registerUserFromInvitation(@InputArgument RegisterUserFromInvitationInput input,
 			DgsDataFetchingEnvironment dfe) {
 		validator.validate(input);
 		var registered = invitationService.registerFromInvitation(input.code(), input.name(), input.password());
-		return authService.login(new LoginRequest(registered.email(), input.password()),
+		return authService.login(new LoginInput(registered.email(), input.password()),
 				GraphQlRequestContext.httpRequest(dfe), GraphQlRequestContext.httpResponse(dfe));
 	}
 }

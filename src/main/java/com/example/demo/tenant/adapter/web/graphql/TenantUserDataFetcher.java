@@ -11,16 +11,14 @@ import com.example.demo.config.graphql.Connection;
 import com.example.demo.config.graphql.Cursors;
 import com.example.demo.config.graphql.GraphQlInputValidator;
 import com.example.demo.config.graphql.GraphQlRequestContext;
-import com.example.demo.tenant.adapter.web.dto.user.InactivateTenantUserRequest;
 import com.example.demo.tenant.adapter.web.dto.user.TenantUserIdInput;
 import com.example.demo.tenant.adapter.web.dto.user.UpdateTenantUserInput;
-import com.example.demo.tenant.adapter.web.dto.user.UpdateTenantUserRequest;
 import com.example.demo.tenant.config.TenantAware;
 import com.example.demo.tenant.config.TenantContext;
 import com.example.demo.tenant.domain.TenantUser;
 import com.example.demo.tenant.domain.authorization.TenantRole;
 import com.example.demo.tenant.port.inbound.TenantUserManagementPort;
-import com.example.demo.user.adapter.web.dto.user.FindMeResponse;
+import com.example.demo.user.adapter.web.dto.user.UserProfile;
 import com.netflix.graphql.dgs.DgsComponent;
 import com.netflix.graphql.dgs.DgsData;
 import com.netflix.graphql.dgs.DgsDataFetchingEnvironment;
@@ -56,9 +54,9 @@ public class TenantUserDataFetcher {
 	}
 
 	@DgsData(parentType = "TenantUser", field = "user")
-	public CompletableFuture<FindMeResponse> user(DgsDataFetchingEnvironment dfe) {
+	public CompletableFuture<UserProfile> user(DgsDataFetchingEnvironment dfe) {
 		TenantUser tenantUser = dfe.getSource();
-		DataLoader<UUID, FindMeResponse> loader = dfe.getDataLoader(UserProfileLoader.NAME);
+		DataLoader<UUID, UserProfile> loader = dfe.getDataLoader(UserProfileLoader.NAME);
 		return loader.load(tenantUser.getId().userId());
 	}
 
@@ -73,10 +71,8 @@ public class TenantUserDataFetcher {
 	@TenantAware(withPermissions = "tenant_users:update")
 	@DgsMutation
 	public Map<String, Object> updateTenantUser(@InputArgument UpdateTenantUserInput input) {
-		validator.validate(input);
 		var tenantId = TenantContext.getTenantId();
-		tenantUserService.updateTenantUser(input.userId(),
-				new UpdateTenantUserRequest(new java.util.LinkedHashSet<>(input.tenantRoleIds())), tenantId);
+		tenantUserService.updateTenantUser(validator.validate(input), tenantId);
 		return Map.of("tenantUser", requireTenantUser(input.userId(), tenantId));
 	}
 
@@ -108,7 +104,7 @@ public class TenantUserDataFetcher {
 		validator.validate(input);
 		var tenantId = TenantContext.getTenantId();
 		tenantUserService.updateTenantUserActiveStatus(GraphQlRequestContext.currentUser(dfe).getId(),
-				input.userId(), new InactivateTenantUserRequest(active), tenantId);
+				input.userId(), active, tenantId);
 		return Map.of("tenantUser", requireTenantUser(input.userId(), tenantId));
 	}
 

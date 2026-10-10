@@ -10,9 +10,8 @@ import java.util.Map;
 import org.springframework.data.domain.Window;
 import com.example.demo.tenant.domain.authorization.Permission;
 
-import com.example.demo.tenant.adapter.web.dto.role.CreateTenantRoleRequest;
-import com.example.demo.tenant.adapter.web.dto.role.CreateTenantRoleResponse;
-import com.example.demo.tenant.adapter.web.dto.role.UpdateTenantRoleRequest;
+import com.example.demo.tenant.adapter.web.dto.role.CreateTenantRoleInput;
+import com.example.demo.tenant.adapter.web.dto.role.UpdateTenantRoleInput;
 import com.example.demo.tenant.domain.authorization.TenantRole;
 
 public interface TenantRoleManagementPort {
@@ -20,7 +19,7 @@ public interface TenantRoleManagementPort {
     Window<TenantRole> scrollTenantRoles(@Nullable String query, @Nullable Boolean active, int limit, @Nullable UUID after, UUID tenantId);
     Map<UUID, List<Permission>> findPermissionsByRoleIds(Collection<UUID> roleIds, UUID tenantId);
     TenantRole findTenantRoleById(UUID id, UUID tenantId);
-    CreateTenantRoleResponse createTenantRole(CreateTenantRoleRequest dto, UUID tenantId);
-    void updateTenantRole(UUID id, UpdateTenantRoleRequest dto, UUID tenantId);
+    TenantRole createTenantRole(CreateTenantRoleInput dto, UUID tenantId);
+    TenantRole updateTenantRole(UpdateTenantRoleInput dto, UUID tenantId);
     TenantRole setTenantRoleActive(UUID id, boolean active, UUID tenantId);
 }

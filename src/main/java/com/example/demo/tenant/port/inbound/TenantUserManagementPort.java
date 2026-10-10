@@ -11,8 +11,7 @@ import java.util.Map;
 import org.springframework.data.domain.Window;
 import com.example.demo.tenant.domain.authorization.TenantRole;
 
-import com.example.demo.tenant.adapter.web.dto.user.InactivateTenantUserRequest;
-import com.example.demo.tenant.adapter.web.dto.user.UpdateTenantUserRequest;
+import com.example.demo.tenant.adapter.web.dto.user.UpdateTenantUserInput;
 import com.example.demo.tenant.domain.TenantUser;
 
 public interface TenantUserManagementPort {
@@ -21,8 +20,8 @@ public interface TenantUserManagementPort {
             @Nullable UUID after, UUID tenantId);
     Map<UUID, List<TenantRole>> findRolesByUserIds(Collection<UUID> userIds, UUID tenantId);
     Optional<TenantUser> findTenantUserById(UUID userId, UUID tenantId);
-    void updateTenantUserActiveStatus(UUID actorId, UUID userId, InactivateTenantUserRequest dto, UUID tenantId);
+    void updateTenantUserActiveStatus(UUID actorId, UUID userId, boolean active, UUID tenantId);
     /** Removes the membership (soft delete) together with its role assignments. */
     void removeTenantUser(UUID actorId, UUID userId, UUID tenantId);
-    void updateTenantUser(UUID userId, UpdateTenantUserRequest dto, UUID tenantId);
+    void updateTenantUser(UpdateTenantUserInput dto, UUID tenantId);
 }

@@ -4,8 +4,8 @@ import java.util.Map;
 
 import com.example.demo.config.graphql.GraphQlInputValidator;
 import com.example.demo.config.graphql.GraphQlRequestContext;
-import com.example.demo.user.adapter.web.dto.user.FindMeResponse;
-import com.example.demo.user.adapter.web.dto.user.UpdateUserRequest;
+import com.example.demo.user.adapter.web.dto.user.UserProfile;
+import com.example.demo.user.adapter.web.dto.user.UpdateMeInput;
 import com.example.demo.user.port.inbound.UserProfilePort;
 import com.netflix.graphql.dgs.DgsComponent;
 import com.netflix.graphql.dgs.DgsDataFetchingEnvironment;
@@ -24,12 +24,12 @@ public class UserDataFetcher {
 	}
 
 	@DgsQuery
-	public FindMeResponse me(DgsDataFetchingEnvironment dfe) {
+	public UserProfile me(DgsDataFetchingEnvironment dfe) {
 		return userService.findMe(GraphQlRequestContext.currentUser(dfe));
 	}
 
 	@DgsMutation
-	public Map<String, Object> updateMe(@InputArgument UpdateUserRequest input, DgsDataFetchingEnvironment dfe) {
+	public Map<String, Object> updateMe(@InputArgument UpdateMeInput input, DgsDataFetchingEnvironment dfe) {
 		validator.validate(input);
 		return Map.of("user", userService.updateUser(input, GraphQlRequestContext.currentUser(dfe)));
 	}

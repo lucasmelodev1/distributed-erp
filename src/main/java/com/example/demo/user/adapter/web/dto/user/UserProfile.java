@@ -4,7 +4,7 @@ import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 
-public record FindMeResponse(
+public record UserProfile(
 		UUID id,
 		String name,
 		String email,

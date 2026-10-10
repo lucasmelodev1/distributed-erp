@@ -24,8 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRoleRepository;
-import com.example.demo.tenant.adapter.web.dto.user.InactivateTenantUserRequest;
-import com.example.demo.tenant.adapter.web.dto.user.UpdateTenantUserRequest;
+import com.example.demo.tenant.adapter.web.dto.user.UpdateTenantUserInput;
 import com.example.demo.tenant.domain.TenantUser;
 import com.example.demo.tenant.domain.TenantUserId;
 import com.example.demo.tenant.domain.TenantUserSpecification;
@@ -80,9 +79,8 @@ public class TenantUserService implements TenantUserManagementPort {
     }
 
     @Transactional
-    public void updateTenantUserActiveStatus(UUID actorId, UUID userId, InactivateTenantUserRequest dto,
-            UUID tenantId) {
-        if (!dto.active() && actorId.equals(userId)) {
+    public void updateTenantUserActiveStatus(UUID actorId, UUID userId, boolean active, UUID tenantId) {
+        if (!active && actorId.equals(userId)) {
             throw new IllegalArgumentException("You cannot inactivate yourself");
         }
         var tenantUserId = new TenantUserId(tenantId, userId);
@@ -93,7 +91,7 @@ public class TenantUserService implements TenantUserManagementPort {
         }
 
         var tenantUser = tenantUserQueryResult.get();
-        if (dto.active()) {
+        if (active) {
             log.info("Reactivating tenant user for tenant={} and user={}", tenantId, userId);
             tenantUser.reactivate();
         } else {
@@ -118,7 +116,8 @@ public class TenantUserService implements TenantUserManagementPort {
     }
 
     @Transactional
-    public void updateTenantUser(UUID userId, UpdateTenantUserRequest dto, UUID tenantId) {
+    public void updateTenantUser(UpdateTenantUserInput dto, UUID tenantId) {
+        var userId = dto.userId();
         var tenantUserQueryResult = tenantUserRepository.findById(new TenantUserId(tenantId, userId));
         if (tenantUserQueryResult.isEmpty()) {
             log.info("Tenant user not found for tenant={} and user={}", tenantId, userId);

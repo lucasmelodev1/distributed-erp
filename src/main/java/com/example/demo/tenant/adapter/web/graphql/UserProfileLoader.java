@@ -8,13 +8,13 @@ import java.util.concurrent.CompletionStage;
 
 import org.dataloader.MappedBatchLoader;
 
-import com.example.demo.user.adapter.web.dto.user.FindMeResponse;
+import com.example.demo.user.adapter.web.dto.user.UserProfile;
 import com.example.demo.user.port.inbound.UserProfilePort;
 import com.netflix.graphql.dgs.DgsDataLoader;
 
 /** Loads the public profiles of many users with one query. Users that do not exist are simply absent. */
 @DgsDataLoader(name = UserProfileLoader.NAME)
-public class UserProfileLoader implements MappedBatchLoader<UUID, FindMeResponse> {
+public class UserProfileLoader implements MappedBatchLoader<UUID, UserProfile> {
 	public static final String NAME = "userProfiles";
 
 	private final UserProfilePort userService;
@@ -24,7 +24,7 @@ public class UserProfileLoader implements MappedBatchLoader<UUID, FindMeResponse
 	}
 
 	@Override
-	public CompletionStage<Map<UUID, FindMeResponse>> load(Set<UUID> userIds) {
+	public CompletionStage<Map<UUID, UserProfile>> load(Set<UUID> userIds) {
 		return CompletableFuture.completedFuture(userService.findProfilesByIds(userIds));
 	}
 }

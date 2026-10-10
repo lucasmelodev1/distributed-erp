@@ -27,19 +27,19 @@ import com.example.demo.user.adapter.outbound.persistence.AuthTokenRepository;
 import com.example.demo.user.domain.User;
 import com.example.demo.user.domain.AuthToken;
 import com.example.demo.user.domain.AuthTokenType;
-import com.example.demo.user.adapter.web.dto.auth.CreateUserByAuthTokenRequest;
-import com.example.demo.user.adapter.web.dto.user.FindMeResponse;
-import com.example.demo.user.adapter.web.dto.auth.LoginRequest;
-import com.example.demo.user.adapter.web.dto.auth.LoginResponse;
-import com.example.demo.user.adapter.web.dto.auth.RequestEmailVerificationRequest;
-import com.example.demo.user.adapter.web.dto.auth.RequestEmailVerificationResponse;
-import com.example.demo.user.adapter.web.dto.auth.RequestResetPasswordRequest;
-import com.example.demo.user.adapter.web.dto.auth.RequestResetPasswordResponse;
-import com.example.demo.user.adapter.web.dto.auth.ResetPasswordRequest;
-import com.example.demo.user.adapter.web.dto.auth.VerifyEmailRequest;
-import com.example.demo.user.adapter.web.dto.auth.VerifyEmailResponse;
-import com.example.demo.user.adapter.web.dto.auth.VerifyPasswordResetRequestRequest;
-import com.example.demo.user.adapter.web.dto.auth.VerifyResetPasswordResponse;
+import com.example.demo.user.adapter.web.dto.auth.RegisterUserInput;
+import com.example.demo.user.adapter.web.dto.user.UserProfile;
+import com.example.demo.user.adapter.web.dto.auth.LoginInput;
+import com.example.demo.user.adapter.web.dto.auth.LoginPayload;
+import com.example.demo.user.adapter.web.dto.auth.RequestEmailVerificationInput;
+import com.example.demo.user.adapter.web.dto.auth.RequestEmailVerificationPayload;
+import com.example.demo.user.adapter.web.dto.auth.RequestPasswordResetInput;
+import com.example.demo.user.adapter.web.dto.auth.RequestPasswordResetPayload;
+import com.example.demo.user.adapter.web.dto.auth.ResetPasswordInput;
+import com.example.demo.user.adapter.web.dto.auth.VerifyEmailInput;
+import com.example.demo.user.adapter.web.dto.auth.VerifyEmailPayload;
+import com.example.demo.user.adapter.web.dto.auth.VerifyPasswordResetInput;
+import com.example.demo.user.adapter.web.dto.auth.VerifyPasswordResetPayload;
 import com.example.demo.utils.EnvUtils;
 import com.example.demo.utils.HashUtils;
 import com.example.demo.utils.TokenService;
@@ -130,23 +130,23 @@ public class AuthService implements AuthPort {
 		log.info(label + " sent to email");
 	}
 
-	public RequestEmailVerificationResponse requestEmailVerification(RequestEmailVerificationRequest dto) {
+	public RequestEmailVerificationPayload requestEmailVerification(RequestEmailVerificationInput dto) {
 		var type = AuthTokenType.EMAIL_VERIFICATION;
 		authTokenRepository.revokeActiveByEmailAndType(dto.email(), type, Instant.now());
 
 		var saveTokenResponse = generateAndSaveToken(dto.email(), type);
 		sendTokenToUser(dto.email(), "Email Verification Token", saveTokenResponse.token());
 
-		return new RequestEmailVerificationResponse(saveTokenResponse.authTokenId());
+		return new RequestEmailVerificationPayload(saveTokenResponse.authTokenId());
 	}
 
-	public VerifyEmailResponse verifyEmail(VerifyEmailRequest dto) throws EntityNotFoundException {
+	public VerifyEmailPayload verifyEmail(VerifyEmailInput dto) throws EntityNotFoundException {
 		var oldToken = consumeToken(dto.token(), AuthTokenType.EMAIL_VERIFICATION);
 		var saveTokenResponse = generateAndSaveToken(oldToken.getEmail(), AuthTokenType.USER_CREATION);
-		return new VerifyEmailResponse(saveTokenResponse.token());
+		return new VerifyEmailPayload(saveTokenResponse.token());
 	}
 
-	public LoginResponse createUserByAuthToken(CreateUserByAuthTokenRequest dto, HttpServletRequest request,
+	public LoginPayload createUserByAuthToken(RegisterUserInput dto, HttpServletRequest request,
 			HttpServletResponse response) throws EntityNotFoundException {
 		var token = consumeToken(dto.token(), AuthTokenType.USER_CREATION);
 
@@ -154,10 +154,10 @@ public class AuthService implements AuthPort {
 		var user = new User(dto.name(), token.getEmail(), passwordHash);
 		userRepository.save(user);
 
-		return login(new LoginRequest(token.getEmail(), dto.password()), request, response);
+		return login(new LoginInput(token.getEmail(), dto.password()), request, response);
 	}
 
-	public RequestResetPasswordResponse requestResetPassword(RequestResetPasswordRequest dto) {
+	public RequestPasswordResetPayload requestResetPassword(RequestPasswordResetInput dto) {
 		var user = userRepository.findByEmail(dto.email());
 
 		if (user.isPresent()) {
@@ -166,20 +166,20 @@ public class AuthService implements AuthPort {
 
 			var saveTokenResponse = generateAndSaveToken(dto.email(), type);
 			sendTokenToUser(dto.email(), "Reset Password Token", saveTokenResponse.token());
-			return new RequestResetPasswordResponse(saveTokenResponse.authTokenId());
+			return new RequestPasswordResetPayload(saveTokenResponse.authTokenId());
 		}
 
-		return new RequestResetPasswordResponse(UuidV7Generator.generate());
+		return new RequestPasswordResetPayload(UuidV7Generator.generate());
 	}
 
-	public VerifyResetPasswordResponse verifyPasswordResetToken(VerifyPasswordResetRequestRequest dto)
+	public VerifyPasswordResetPayload verifyPasswordResetToken(VerifyPasswordResetInput dto)
 			throws EntityNotFoundException {
 		var token = consumeToken(dto.token(), AuthTokenType.PASSWORD_RESET_REQUEST);
-		return new VerifyResetPasswordResponse(
+		return new VerifyPasswordResetPayload(
 				generateAndSaveToken(token.getEmail(), AuthTokenType.PASSWORD_RESET).token());
 	}
 
-	public void resetPassword(ResetPasswordRequest dto) throws EntityNotFoundException {
+	public void resetPassword(ResetPasswordInput dto) throws EntityNotFoundException {
 		consumeToken(dto.token(), AuthTokenType.PASSWORD_RESET);
 
 		var passwordHash = passwordEncoder.encode(dto.password());
@@ -191,7 +191,7 @@ public class AuthService implements AuthPort {
 		userRepository.save(user);
 	}
 
-	public LoginResponse login(LoginRequest dto, HttpServletRequest request, HttpServletResponse response)
+	public LoginPayload login(LoginInput dto, HttpServletRequest request, HttpServletResponse response)
 			throws BadCredentialsException {
 		Authentication auth = authenticationManager
 				.authenticate(new UsernamePasswordAuthenticationToken(dto.email(), dto.password()));
@@ -201,12 +201,12 @@ public class AuthService implements AuthPort {
 		securityContextRepository.saveContext(context, request, response);
 		User user = (User) auth.getPrincipal();
 		log.info("User " + user.getId() + " logged in");
-		return new LoginResponse(user.getId(), user.getEmail(), user.getRole());
+		return new LoginPayload(user.getId(), user.getEmail(), user.getRole());
 	}
 
 	@Transactional(readOnly = true)
-	public FindMeResponse findMe(User user) {
-		return new FindMeResponse(user.getId(), user.getName(), user.getEmail(), null);
+	public UserProfile findMe(User user) {
+		return new UserProfile(user.getId(), user.getName(), user.getEmail(), null);
 	}
 
 	public void logout(HttpServletRequest request, HttpServletResponse response) {

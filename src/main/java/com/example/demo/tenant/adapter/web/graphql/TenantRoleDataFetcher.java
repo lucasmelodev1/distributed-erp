@@ -1,6 +1,5 @@
 package com.example.demo.tenant.adapter.web.graphql;
 
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -11,10 +10,9 @@ import org.dataloader.DataLoader;
 import com.example.demo.config.graphql.Connection;
 import com.example.demo.config.graphql.Cursors;
 import com.example.demo.config.graphql.GraphQlInputValidator;
-import com.example.demo.tenant.adapter.web.dto.role.CreateTenantRoleRequest;
+import com.example.demo.tenant.adapter.web.dto.role.CreateTenantRoleInput;
 import com.example.demo.tenant.adapter.web.dto.role.TenantRoleIdInput;
 import com.example.demo.tenant.adapter.web.dto.role.UpdateTenantRoleInput;
-import com.example.demo.tenant.adapter.web.dto.role.UpdateTenantRoleRequest;
 import com.example.demo.tenant.config.TenantAware;
 import com.example.demo.tenant.config.TenantContext;
 import com.example.demo.tenant.domain.authorization.Permission;
@@ -62,20 +60,16 @@ public class TenantRoleDataFetcher {
 
 	@TenantAware(withPermissions = "tenant_roles:create")
 	@DgsMutation
-	public Map<String, Object> createTenantRole(@InputArgument CreateTenantRoleRequest input) {
-		var tenantId = TenantContext.getTenantId();
-		var created = tenantRoleService.createTenantRole(validator.validate(input), tenantId);
-		return Map.of("tenantRole", tenantRoleService.findTenantRoleById(created.tenantRoleId(), tenantId));
+	public Map<String, Object> createTenantRole(@InputArgument CreateTenantRoleInput input) {
+		return Map.of("tenantRole",
+				tenantRoleService.createTenantRole(validator.validate(input), TenantContext.getTenantId()));
 	}
 
 	@TenantAware(withPermissions = "tenant_roles:update")
 	@DgsMutation
 	public Map<String, Object> updateTenantRole(@InputArgument UpdateTenantRoleInput input) {
-		validator.validate(input);
-		var tenantId = TenantContext.getTenantId();
-		tenantRoleService.updateTenantRole(input.id(),
-				new UpdateTenantRoleRequest(input.name(), new LinkedHashSet<>(input.permissionCodes())), tenantId);
-		return Map.of("tenantRole", tenantRoleService.findTenantRoleById(input.id(), tenantId));
+		return Map.of("tenantRole",
+				tenantRoleService.updateTenantRole(validator.validate(input), TenantContext.getTenantId()));
 	}
 
 	@TenantAware(withPermissions = "tenant_roles:inactivate")

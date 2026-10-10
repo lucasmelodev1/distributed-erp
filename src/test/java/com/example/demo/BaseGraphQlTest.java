@@ -18,7 +18,7 @@ import com.example.demo.email.SentEmails;
 import com.example.demo.tenant.config.TenantContext;
 import com.example.demo.user.adapter.outbound.persistence.AuthTokenRepository;
 import com.example.demo.user.adapter.outbound.persistence.UserRepository;
-import com.example.demo.user.adapter.web.dto.user.CreateUserRequest;
+import com.example.demo.user.adapter.web.dto.user.CreateUserInput;
 import com.example.demo.user.port.inbound.UserProfilePort;
 
 /**
@@ -65,7 +65,7 @@ public abstract class BaseGraphQlTest {
 
 	/** Creates the user through the service and logs in through GraphQL to obtain a session. */
 	protected TestUser createUser(String name, String email) {
-		var created = userService.createUser(new CreateUserRequest(name, email, TEST_PASSWORD));
+		var created = userService.createUser(new CreateUserInput(name, email, TEST_PASSWORD));
 		var cookie = graphql(LOGIN, variables("input", variables("email", email, "password", TEST_PASSWORD)))
 				.expectStatus().isOk()
 				.expectBody()
@@ -73,7 +73,7 @@ public abstract class BaseGraphQlTest {
 				.returnResult()
 				.getResponseCookies()
 				.getFirst(SESSION_NAME);
-		return new TestUser(userRepository.findById(created.userId()).orElseThrow(), cookie);
+		return new TestUser(userRepository.findById(created.id()).orElseThrow(), cookie);
 	}
 
 	/** Anonymous request. */

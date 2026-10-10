@@ -21,9 +21,8 @@ import com.example.demo.tenant.adapter.outbound.persistence.TenantRolePermission
 import com.example.demo.tenant.domain.authorization.TenantUserRole;
 import com.example.demo.tenant.domain.authorization.TenantUserRoleId;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRoleRepository;
-import com.example.demo.tenant.adapter.web.dto.tenant.CreateTenantRequest;
-import com.example.demo.tenant.adapter.web.dto.tenant.CreateTenantResponse;
-import com.example.demo.tenant.adapter.web.dto.tenant.UpdateTenantRequest;
+import com.example.demo.tenant.adapter.web.dto.tenant.CreateTenantInput;
+import com.example.demo.tenant.adapter.web.dto.tenant.UpdateTenantInput;
 import com.example.demo.tenant.domain.Tenant;
 import com.example.demo.tenant.domain.TenantUser;
 import com.example.demo.tenant.domain.TenantUserId;
@@ -66,7 +65,7 @@ public class TenantService implements TenantManagementPort {
 	}
 
 	@Transactional
-	public CreateTenantResponse createTenant(CreateTenantRequest dto, UUID userId) {
+	public Tenant createTenant(CreateTenantInput dto, UUID userId) {
 		var tenant = new Tenant(dto.name());
 		try {
 			tenantRepository.save(tenant);
@@ -131,11 +130,11 @@ public class TenantService implements TenantManagementPort {
 			throw e;
 		}
 
-		return new CreateTenantResponse(tenant.getId());
+		return tenant;
 	}
 
 	@Transactional
-	public Tenant updateTenant(UpdateTenantRequest dto, UUID tenantId) {
+	public Tenant updateTenant(UpdateTenantInput dto, UUID tenantId) {
 		var tenantQueryResult = tenantRepository.findById(tenantId);
 		if (tenantQueryResult.isEmpty()) {
 			log.info("Tenant not found. tenant={}", tenantId);

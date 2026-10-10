@@ -4,6 +4,6 @@ import com.example.demo.utils.validations.StrictEmail;
 
 import jakarta.validation.constraints.NotBlank;
 
-public record RequestEmailVerificationRequest(
+public record RequestEmailVerificationInput(
 		@NotBlank @StrictEmail String email) {
 }

@@ -36,7 +36,7 @@ import com.example.demo.tenant.domain.authorization.TenantRole;
 import com.example.demo.tenant.domain.invitation.TenantInvitation;
 import com.example.demo.tenant.domain.invitation.TenantInvitationSpecification;
 import com.example.demo.tenant.port.inbound.TenantInvitationPort;
-import com.example.demo.user.adapter.web.dto.user.CreateUserRequest;
+import com.example.demo.user.adapter.web.dto.user.CreateUserInput;
 import com.example.demo.user.domain.User;
 import com.example.demo.user.port.inbound.UserProfilePort;
 import com.example.demo.utils.EnvUtils;
@@ -178,14 +178,14 @@ public class TenantInvitationService implements TenantInvitationPort {
 					"An account with this email already exists. Log in to accept the invitation.");
 		}
 
-		var created = userService.createUser(new CreateUserRequest(name, invitation.getEmail(), password));
-		joinTenant(invitation, created.userId());
+		var created = userService.createUser(new CreateUserInput(name, invitation.getEmail(), password));
+		joinTenant(invitation, created.id());
 		invitation.accept();
 		invitationRepository.save(invitation);
 
-		log.info("User={} registered from invitation={} to tenant={}", created.userId(), invitation.getId(),
+		log.info("User={} registered from invitation={} to tenant={}", created.id(), invitation.getId(),
 				invitation.getTenantId());
-		return new RegisteredUser(created.userId(), invitation.getEmail());
+		return new RegisteredUser(created.id(), invitation.getEmail());
 	}
 
 	private TenantInvitation findValidByCode(String code) {

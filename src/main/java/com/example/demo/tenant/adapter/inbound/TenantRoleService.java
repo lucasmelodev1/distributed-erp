@@ -23,9 +23,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.tenant.adapter.web.dto.role.CreateTenantRoleRequest;
-import com.example.demo.tenant.adapter.web.dto.role.CreateTenantRoleResponse;
-import com.example.demo.tenant.adapter.web.dto.role.UpdateTenantRoleRequest;
+import com.example.demo.tenant.adapter.web.dto.role.CreateTenantRoleInput;
+import com.example.demo.tenant.adapter.web.dto.role.UpdateTenantRoleInput;
 import com.example.demo.tenant.domain.authorization.TenantRole;
 import com.example.demo.tenant.domain.authorization.TenantRolePermission;
 import com.example.demo.tenant.domain.authorization.TenantRoleSpecification;
@@ -87,7 +86,7 @@ public class TenantRoleService implements TenantRoleManagementPort {
     }
 
     @Transactional
-    public CreateTenantRoleResponse createTenantRole(CreateTenantRoleRequest dto, UUID tenantId) {
+    public TenantRole createTenantRole(CreateTenantRoleInput dto, UUID tenantId) {
         requireKnownPermissions(dto.permissionCodes());
         var permissions = dto
                 .permissionCodes()
@@ -107,14 +106,14 @@ public class TenantRoleService implements TenantRoleManagementPort {
             throw e;
         }
 
-        return new CreateTenantRoleResponse(tenantRole.getId());
+        return tenantRole;
     }
 
     @Transactional
-    public void updateTenantRole(UUID id, UpdateTenantRoleRequest dto, UUID tenantId) {
-        var tenantRoleQueryResult = tenantRoleRepository.findByIdAndTenantId(id, tenantId);
+    public TenantRole updateTenantRole(UpdateTenantRoleInput dto, UUID tenantId) {
+        var tenantRoleQueryResult = tenantRoleRepository.findByIdAndTenantId(dto.id(), tenantId);
         if (tenantRoleQueryResult.isEmpty()) {
-            throw new EntityNotFoundException("Tenant role not found for id: " + id);
+            throw new EntityNotFoundException("Tenant role not found for id: " + dto.id());
         }
         var tenantRole = tenantRoleQueryResult.get();
 
@@ -130,7 +129,7 @@ public class TenantRoleService implements TenantRoleManagementPort {
         tenantRole.getPermissions().addAll(permissions);
 
         try {
-            tenantRoleRepository.save(tenantRole);
+            return tenantRoleRepository.save(tenantRole);
         } catch (Exception e) {
             log.info("Error updating tenant role for tenant={} with name={}: {}", tenantId, dto.name(), e.getMessage(),
                     e);

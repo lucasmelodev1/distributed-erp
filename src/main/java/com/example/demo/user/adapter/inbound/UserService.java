@@ -11,10 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.user.adapter.outbound.persistence.UserRepository;
-import com.example.demo.user.adapter.web.dto.user.CreateUserRequest;
-import com.example.demo.user.adapter.web.dto.user.CreateUserResponse;
-import com.example.demo.user.adapter.web.dto.user.FindMeResponse;
-import com.example.demo.user.adapter.web.dto.user.UpdateUserRequest;
+import com.example.demo.user.adapter.web.dto.user.CreateUserInput;
+import com.example.demo.user.adapter.web.dto.user.UserProfile;
+import com.example.demo.user.adapter.web.dto.user.UpdateMeInput;
 import com.example.demo.user.domain.User;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -30,7 +29,7 @@ public class UserService implements UserProfilePort {
     }
 
     @Transactional(readOnly = true)
-    public FindMeResponse findMe(User user) {
+    public UserProfile findMe(User user) {
         // The session holds a snapshot of the user; always answer from the database.
         return userRepository.findById(user.getId())
                 .map(UserService::toProfile)
@@ -43,24 +42,24 @@ public class UserService implements UserProfilePort {
     }
 
     @Transactional(readOnly = true)
-    public Map<UUID, FindMeResponse> findProfilesByIds(Collection<UUID> ids) {
+    public Map<UUID, UserProfile> findProfilesByIds(Collection<UUID> ids) {
         return userRepository.findAllById(ids).stream()
                 .collect(Collectors.toMap(User::getId, UserService::toProfile));
     }
 
-    private static FindMeResponse toProfile(User user) {
-        return new FindMeResponse(user.getId(), user.getName(), user.getEmail(), user.getProfileIconUrl());
+    private static UserProfile toProfile(User user) {
+        return new UserProfile(user.getId(), user.getName(), user.getEmail(), user.getProfileIconUrl());
     }
 
     @Transactional
-    public CreateUserResponse createUser(CreateUserRequest dto) {
+    public UserProfile createUser(CreateUserInput dto) {
         var user = new User(dto.name(), dto.email(), passwordEncoder.encode(dto.password()));
         user = userRepository.save(user);
-        return new CreateUserResponse(user.getId());
+        return toProfile(user);
     }
 
     @Transactional
-    public FindMeResponse updateUser(UpdateUserRequest dto, User user) {
+    public UserProfile updateUser(UpdateMeInput dto, User user) {
         var managed = userRepository.findById(user.getId())
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
         managed.setName(dto.name());
