@@ -116,6 +116,23 @@ Access control (in `config/graphql/`, enforced for every top-level Query/Mutatio
 - `BaseGraphQlTest` has `newTenant`, `newRole`, `graphqlIn(tenantId, user, ...)` and `variables(...)` for the common setup.
 - Create users through repositories/services. Use the tenant creation endpoint when the test is meant to exercise tenant initialization and role/permission setup.
 
+## Frontend (`frontend/`)
+
+React 19 + Vite + TypeScript SPA with shadcn/ui (Base UI flavour, preset `b2BnwC9Oi`), urql and React Router. It uses Node, not Maven.
+
+```bash
+cd frontend
+npm run dev        # http://localhost:5173; proxies /graphql to :8080 (same origin, so the SESSION cookie needs no CORS)
+npm run codegen    # regenerate src/gql from ../src/main/resources/schema/*.graphqls; commit the result
+npm run typecheck  # tsc -b (not --noEmit: the root tsconfig only has references)
+npm run lint && npm test && npm run build
+```
+
+- Write operations as `graphql(`...`)` documents next to the feature that uses them, and run `codegen` after changing a document or the backend schema.
+- The session cookie is the source of truth: `SessionProvider` reads `me`, and tokens are never stored. `RequireAuth` / `PublicOnly` guard routes. There is no frontend authorization yet.
+- Emailed codes are case-sensitive, six-character alphanumeric strings: send exactly what the user typed.
+- shadcn skills live in `frontend/.agents/skills` (installed with `npx skills add shadcn/ui`). Add components with `npx shadcn@latest add <name>` and use blocks (`login-01`, `sidebar-07`) as templates.
+
 ## Adding things
 
 New use case: inbound port, then service in `adapter/inbound/`, then the schema in `schema/<feature>.graphqls` and a data fetcher method (with `@TenantAware` if tenant-scoped, or `@PublicOperation` if anonymous), then input records in `adapter/web/dto/`, then a `BaseGraphQlTest` test covering success, authentication, tenant/permission and validation failures.
