@@ -1,0 +1,12 @@
+"""A person that can log in to the application."""
+type User {
+	id: UUID!
+	name: String!
+	email: String!
+	profileIconUrl: String
+}
+
+extend type Query {
+	"""The authenticated user."""
+	me: User!
+}

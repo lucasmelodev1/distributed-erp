@@ -1,0 +1,111 @@
+# Registration, login and password recovery. Operations here are public unless noted.
+# This file declares the root Mutation type; other schema files use `extend type Mutation`.
+
+type Mutation {
+	"""
+	Step 1 of registration: sends a verification token to the email address.
+	"""
+	requestEmailVerification(input: RequestEmailVerificationInput!): RequestEmailVerificationPayload!
+
+	"""
+	Step 2 of registration: consumes the emailed token and returns a second token used to create the account.
+	"""
+	verifyEmail(input: VerifyEmailInput!): VerifyEmailPayload!
+
+	"""
+	Step 3 of registration: creates the account with the second token, logs the user in and sets the session cookie.
+	"""
+	registerUser(input: RegisterUserInput!): LoginPayload!
+
+	"""
+	Authenticates the user and sets the session cookie.
+	"""
+	login(input: LoginInput!): LoginPayload!
+
+	"""
+	Invalidates the current session. Requires authentication.
+	"""
+	logout: LogoutPayload!
+
+	"""
+	Sends a password reset token to the email when an account exists. The response never reveals whether it does.
+	"""
+	requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload!
+
+	"""
+	Consumes the emailed reset token and returns a second token used to set the new password.
+	"""
+	verifyPasswordReset(input: VerifyPasswordResetInput!): VerifyPasswordResetPayload!
+
+	"""
+	Sets a new password using the second reset token.
+	"""
+	resetPassword(input: ResetPasswordInput!): ResetPasswordPayload!
+}
+
+input RequestEmailVerificationInput {
+	email: String!
+}
+
+type RequestEmailVerificationPayload {
+	authTokenId: UUID!
+}
+
+input VerifyEmailInput {
+	"""The six-character token received by email."""
+	token: String!
+}
+
+type VerifyEmailPayload {
+	token: String!
+}
+
+input RegisterUserInput {
+	name: String!
+	"""The token returned by verifyEmail."""
+	token: String!
+	password: String!
+}
+
+input LoginInput {
+	email: String!
+	password: String!
+}
+
+type LoginPayload {
+	id: UUID!
+	email: String!
+	role: String!
+}
+
+type LogoutPayload {
+	success: Boolean!
+}
+
+input RequestPasswordResetInput {
+	email: String!
+}
+
+type RequestPasswordResetPayload {
+	authTokenId: UUID!
+}
+
+input VerifyPasswordResetInput {
+	"""The six-character token received by email."""
+	token: String!
+}
+
+type VerifyPasswordResetPayload {
+	token: String!
+}
+
+input ResetPasswordInput {
+	email: String!
+	"""The token returned by verifyPasswordReset."""
+	token: String!
+	password: String!
+}
+
+type ResetPasswordPayload {
+	success: Boolean!
+}
