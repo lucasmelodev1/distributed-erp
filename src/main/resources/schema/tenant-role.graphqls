@@ -1,0 +1,94 @@
+"""A named set of permissions that can be granted to the users of a tenant."""
+type TenantRole {
+	id: UUID!
+	name: String!
+	"""Ordered by permission code."""
+	permissions: [Permission!]!
+	"""An inactive role stays assigned to its holders but grants no permissions."""
+	active: Boolean!
+	inactivatedAt: DateTime
+	createdAt: DateTime
+	updatedAt: DateTime
+}
+
+"""Something a role may allow its holders to do, e.g. tenants:update."""
+type Permission {
+	code: String!
+	description: String
+}
+
+type TenantRoleConnection {
+	edges: [TenantRoleEdge!]!
+	pageInfo: PageInfo!
+}
+
+type TenantRoleEdge {
+	node: TenantRole!
+	cursor: String!
+}
+
+extend type Query {
+	"""
+	Roles of the tenant selected by X-Tenant-Id, oldest first. Requires the tenant_roles:read permission.
+	"""
+	tenantRoles(
+		"""Page size, 1 to 100."""
+		first: Int = 20
+		"""Return the roles after this cursor (a pageInfo.endCursor)."""
+		after: String
+		"""Only roles whose name contains this text."""
+		query: String
+		"""true for active roles only, false for inactive ones only, omitted for both."""
+		active: Boolean
+	): TenantRoleConnection!
+
+	"""
+	A role of the tenant selected by X-Tenant-Id. Requires the tenant_roles:read permission.
+	"""
+	tenantRole(id: UUID!): TenantRole!
+}
+
+extend type Mutation {
+	"""Requires the tenant_roles:create permission."""
+	createTenantRole(input: CreateTenantRoleInput!): CreateTenantRolePayload!
+
+	"""Replaces the name and permissions of the role. Requires the tenant_roles:update permission."""
+	updateTenantRole(input: UpdateTenantRoleInput!): UpdateTenantRolePayload!
+
+	"""Requires the tenant_roles:inactivate permission."""
+	inactivateTenantRole(input: TenantRoleIdInput!): InactivateTenantRolePayload!
+
+	"""Requires the tenant_roles:inactivate permission."""
+	reactivateTenantRole(input: TenantRoleIdInput!): ReactivateTenantRolePayload!
+}
+
+input CreateTenantRoleInput {
+	name: String!
+	permissionCodes: [String!]!
+}
+
+type CreateTenantRolePayload {
+	tenantRole: TenantRole!
+}
+
+input UpdateTenantRoleInput {
+	id: UUID!
+	name: String!
+	permissionCodes: [String!]!
+}
+
+type UpdateTenantRolePayload {
+	tenantRole: TenantRole!
+}
+
+input TenantRoleIdInput {
+	id: UUID!
+}
+
+type InactivateTenantRolePayload {
+	tenantRole: TenantRole!
+}
+
+type ReactivateTenantRolePayload {
+	tenantRole: TenantRole!
+}

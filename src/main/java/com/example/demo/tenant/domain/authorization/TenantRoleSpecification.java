@@ -10,6 +10,16 @@ public class TenantRoleSpecification {
         return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("tenantId"), tenantId);
     }
 
+    public static Specification<TenantRole> hasActiveStatus(@Nullable Boolean active) {
+        return (root, query, criteriaBuilder) -> {
+            if (active == null) {
+                return null;
+            }
+            return active ? criteriaBuilder.isNull(root.get("inactivatedAt"))
+                    : criteriaBuilder.isNotNull(root.get("inactivatedAt"));
+        };
+    }
+
     public static Specification<TenantRole> hasName(@Nullable String name) {
         return (root, query, criteriaBuilder) -> name == null ? null
                 : criteriaBuilder.like(root.get("name"), "%" + name + "%");
