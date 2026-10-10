@@ -11,8 +11,6 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 
 import com.example.demo.BaseGraphQlTest;
 import com.example.demo.TestUser;
-import com.example.demo.tenant.adapter.web.dto.tenant.CreateTenantRequest;
-import com.example.demo.tenant.adapter.web.dto.tenant.CreateTenantResponse;
 
 import graphql.analysis.MaxQueryComplexityInstrumentation;
 import graphql.analysis.MaxQueryDepthInstrumentation;
@@ -35,13 +33,7 @@ class GraphQlInfrastructureTest extends BaseGraphQlTest {
 	void setup() {
 		alpha = createUser("Gql Alpha", "gql.alpha@mail.com");
 		beta = createUser("Gql Beta", "gql.beta@mail.com");
-		alphaTenantId = postAs("/api/v1/tenant", alpha)
-				.body(new CreateTenantRequest("Gql Alpha Tenant"))
-				.exchange()
-				.expectStatus().isCreated()
-				.returnResult(CreateTenantResponse.class)
-				.getResponseBody()
-				.id();
+		alphaTenantId = newTenant(alpha, "Gql Alpha Tenant");
 	}
 
 	private RestTestClient.ResponseSpec query(String query, TestUser user, String tenantHeader) {

@@ -3,7 +3,6 @@ package com.example.demo.tenant.domain.invitation;
 import java.time.Instant;
 import java.util.UUID;
 
-import org.apache.commons.lang3.builder.ToStringExclude;
 import org.hibernate.annotations.SoftDelete;
 import org.hibernate.annotations.SoftDeleteType;
 import org.springframework.data.annotation.CreatedDate;
@@ -30,7 +29,6 @@ public class TenantInvitationRole {
 	@MapsId("tenantInvitationId")
 	@JoinColumn(name = "tenant_invitation_id", referencedColumnName = "id", insertable = false, updatable = false)
 	@JsonIgnore
-	@ToStringExclude
 	private TenantInvitation invitation;
 
 	@CreatedDate

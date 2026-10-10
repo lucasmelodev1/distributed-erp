@@ -2,7 +2,6 @@ package com.example.demo.tenant.domain.authorization;
 
 import java.time.Instant;
 
-import org.apache.commons.lang3.builder.ToStringExclude;
 import org.springframework.data.annotation.CreatedDate;
 
 import com.example.demo.tenant.domain.TenantUser;
@@ -30,7 +29,6 @@ public class TenantUserRole {
 			@JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
 	})
 	@JsonIgnore
-	@ToStringExclude
 	private TenantUser tenantUser;
 
 	@CreatedDate

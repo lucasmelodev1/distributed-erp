@@ -3,6 +3,9 @@ package com.example.demo.tenant.config;
 import java.util.UUID;
 
 public final class TenantContext {
+	/** Header that selects the tenant an operation runs in. */
+	public static final String TENANT_ID_HEADER = "X-Tenant-Id";
+
 	private static final InheritableThreadLocal<UUID> TENANT_ID = new InheritableThreadLocal<>();
 
 	private TenantContext() {

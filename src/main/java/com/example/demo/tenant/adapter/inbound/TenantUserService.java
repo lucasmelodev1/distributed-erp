@@ -19,8 +19,6 @@ import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRoleReposi
 import com.example.demo.tenant.domain.authorization.TenantRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,16 +47,6 @@ public class TenantUserService implements TenantUserManagementPort {
         this.tenantUserRepository = tenantUserRepository;
         this.tenantUserRoleRepository = tenantUserRoleRepository;
         this.roleChecks = roleChecks;
-    }
-
-    @Transactional(readOnly = true)
-    public Page<TenantUser> findAllTenantUsers(@Nullable String query, @Nullable Boolean active, Pageable pageable,
-            UUID tenantId) {
-        var spec = Specification.allOf(
-                TenantUserSpecification.hasActiveStatus(active),
-                TenantUserSpecification.hasTenantId(tenantId),
-                TenantUserSpecification.hasUserName(query));
-        return tenantUserRepository.findAll(spec, pageable);
     }
 
     @Transactional(readOnly = true)

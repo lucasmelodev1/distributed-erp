@@ -97,11 +97,3 @@ spring:
     schema:
       introspection:
         enabled: true
-springdoc:
-  swagger-ui:
-    enabled: false
-  api-docs:
-    path: /v3/api-docs
-scalar:
-  enabled: true
-  path: /scalar

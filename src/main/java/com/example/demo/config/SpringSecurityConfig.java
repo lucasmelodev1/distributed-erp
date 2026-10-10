@@ -54,20 +54,7 @@ public class SpringSecurityConfig {
 				.csrf(csrf -> csrf.disable())
 				.exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint()))
 				.authorizeHttpRequests(auth -> auth
-						.requestMatchers(
-								"/api/v1/auth/login",
-								"/api/v1/auth/logout",
-								"/api/v1/auth/register-request-email-verification",
-								"/api/v1/auth/register-verify-email",
-								"/api/v1/auth/register-create-user",
-								"/api/v1/auth/request-reset-password",
-								"/api/v1/auth/verify-reset-password",
-								"/api/v1/auth/reset-password",
-								"/v3/api-docs/**",
-								"/swagger-ui/**",
-								"/scalar/**",
-								"/graphql",
-								"/graphiql/**")
+						.requestMatchers("/graphql", "/graphiql/**")
 						.permitAll()
 						.anyRequest().authenticated())
 				.build();

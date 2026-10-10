@@ -3,14 +3,77 @@ package com.example.demo;
 import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInstance;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
-/** Base for tests that call the GraphQL endpoint over HTTP. */
-public abstract class BaseGraphQlTest extends BaseControllerTest {
+import com.example.demo.email.SentEmails;
+import com.example.demo.tenant.config.TenantContext;
+import com.example.demo.user.adapter.outbound.persistence.AuthTokenRepository;
+import com.example.demo.user.adapter.outbound.persistence.UserRepository;
+import com.example.demo.user.adapter.web.dto.user.CreateUserRequest;
+import com.example.demo.user.port.inbound.UserProfilePort;
 
-	protected BaseGraphQlTest() {
-		super("");
+/**
+ * Base for tests that call the GraphQL endpoint over HTTP on a random port with
+ * the test profile and the Testcontainers services.
+ */
+@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@AutoConfigureRestTestClient
+@ActiveProfiles("test")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Import(TestcontainersConfiguration.class)
+public abstract class BaseGraphQlTest {
+	protected static final String SESSION_NAME = "SESSION";
+	protected static final String TENANT_HEADER = TenantContext.TENANT_ID_HEADER;
+	protected static final String TEST_PASSWORD = "Password@123";
+
+	private static final String LOGIN = """
+			mutation($input: LoginInput!) { login(input: $input) { id } }""";
+
+	@Autowired
+	protected RestTestClient restClient;
+
+	@Autowired
+	private UserRepository userRepository;
+
+	@Autowired
+	private UserProfilePort userService;
+
+	@Autowired
+	private AuthTokenRepository authTokenRepository;
+
+	@Autowired
+	protected SentEmails sentEmails;
+
+	/**
+	 * In the test profile every generated token is the same value, so tokens left
+	 * over by other test classes sharing the database would make lookups ambiguous.
+	 */
+	@BeforeEach
+	void clearAuthTokens() {
+		authTokenRepository.deleteAll();
+		sentEmails.clear();
+	}
+
+	/** Creates the user through the service and logs in through GraphQL to obtain a session. */
+	protected TestUser createUser(String name, String email) {
+		var created = userService.createUser(new CreateUserRequest(name, email, TEST_PASSWORD));
+		var cookie = graphql(LOGIN, variables("input", variables("email", email, "password", TEST_PASSWORD)))
+				.expectStatus().isOk()
+				.expectBody()
+				.jsonPath("$.errors").doesNotExist()
+				.returnResult()
+				.getResponseCookies()
+				.getFirst(SESSION_NAME);
+		return new TestUser(userRepository.findById(created.userId()).orElseThrow(), cookie);
 	}
 
 	/** Anonymous request. */

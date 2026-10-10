@@ -3,7 +3,6 @@ package com.example.demo.tenant.domain.authorization;
 import java.time.Instant;
 import java.util.UUID;
 
-import org.apache.commons.lang3.builder.ToStringExclude;
 import org.springframework.data.annotation.CreatedDate;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -25,7 +24,6 @@ public class TenantRolePermission {
 	@MapsId("tenantRoleId")
 	@JoinColumn(name = "tenant_role_id")
 	@JsonIgnore
-	@ToStringExclude
 	private TenantRole role;
 
 	@Column(name = "tenant_id")

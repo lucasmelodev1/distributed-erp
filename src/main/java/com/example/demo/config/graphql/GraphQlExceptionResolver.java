@@ -18,7 +18,7 @@ import jakarta.validation.ConstraintViolationException;
 
 /**
  * Maps exceptions to GraphQL errors, replacing the REST
- * {@code GlobalExceptionHandler}. Unknown failures are logged and returned as a
+ * the REST exception handler it replaced. Unknown failures are logged and returned as a
  * generic error so internals are never exposed.
  */
 @Component

@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import com.example.demo.tenant.config.TenantValidationInterceptor;
+import com.example.demo.tenant.config.TenantContext;
 
 import reactor.core.publisher.Mono;
 
@@ -39,7 +39,7 @@ class GraphQlRequestInterceptor implements WebGraphQlInterceptor {
 			}
 		}
 
-		String tenantHeader = request.getHeaders().getFirst(TenantValidationInterceptor.TENANT_ID_HEADER);
+		String tenantHeader = request.getHeaders().getFirst(TenantContext.TENANT_ID_HEADER);
 		if (tenantHeader != null) {
 			values.put(GraphQlContextKeys.TENANT_HEADER, tenantHeader);
 		}

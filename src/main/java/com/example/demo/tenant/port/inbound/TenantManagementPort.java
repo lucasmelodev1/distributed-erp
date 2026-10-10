@@ -13,7 +13,6 @@ public interface TenantManagementPort {
     List<Tenant> findAllUserTenants(UUID userId);
     CreateTenantResponse createTenant(CreateTenantRequest dto, UUID userId);
     Tenant updateTenant(UpdateTenantRequest dto, UUID tenantId);
-    void deleteTenant(UUID tenantId);
     Tenant setTenantActive(UUID tenantId, boolean active);
     Optional<Tenant> findTenantById(UUID tenantId);
 }

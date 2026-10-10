@@ -164,16 +164,6 @@ public class TenantService implements TenantManagementPort {
 		return tenantRepository.save(tenant);
 	}
 
-	@Transactional
-	public void deleteTenant(UUID tenantId) {
-		try {
-			tenantRepository.deleteById(tenantId);
-		} catch (Exception e) {
-			log.info("Error deleting tenant={}: {}", tenantId, e.getMessage(), e);
-			throw e;
-		}
-	}
-
 	@Transactional(readOnly = true)
 	public Optional<Tenant> findTenantById(UUID tenantId) {
 		return tenantRepository.findById(tenantId);

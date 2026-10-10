@@ -12,7 +12,6 @@ import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository
 import com.example.demo.tenant.config.TenantAccessChecker;
 import com.example.demo.tenant.config.TenantAware;
 import com.example.demo.tenant.config.TenantContext;
-import com.example.demo.tenant.config.TenantValidationInterceptor;
 import com.example.demo.user.domain.User;
 
 import graphql.GraphQLContext;
@@ -107,7 +106,7 @@ class GraphQlAccessInstrumentation extends SimplePerformantInstrumentation {
 		String header = context.get(GraphQlContextKeys.TENANT_HEADER);
 		if (header == null || header.isBlank()) {
 			throw new AuthenticationCredentialsNotFoundException(
-					"Missing required header: " + TenantValidationInterceptor.TENANT_ID_HEADER);
+					"Missing required header: " + TenantContext.TENANT_ID_HEADER);
 		}
 
 		UUID tenantId;
@@ -115,7 +114,7 @@ class GraphQlAccessInstrumentation extends SimplePerformantInstrumentation {
 			tenantId = UUID.fromString(header);
 		} catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException(
-					"Invalid UUID format for header: " + TenantValidationInterceptor.TENANT_ID_HEADER);
+					"Invalid UUID format for header: " + TenantContext.TENANT_ID_HEADER);
 		}
 
 		var selected = new SelectedTenant(tenantId, accessChecker.findMembership(tenantId, user.getId()));

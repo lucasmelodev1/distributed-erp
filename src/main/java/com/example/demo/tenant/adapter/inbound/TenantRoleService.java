@@ -8,7 +8,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.hibernate.Hibernate;
 import org.springframework.data.domain.ScrollPosition;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Window;
@@ -20,8 +19,6 @@ import jakarta.persistence.EntityNotFoundException;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,16 +74,6 @@ public class TenantRoleService implements TenantRoleManagementPort {
         return tenantRolePermissionRepository.findPermissionsByRoleIds(roleIds, tenantId).stream()
                 .collect(Collectors.groupingBy(RolePermissionRow::roleId,
                         Collectors.mapping(RolePermissionRow::permission, Collectors.toList())));
-    }
-
-    @Transactional(readOnly = true)
-    public Page<TenantRole> findAllTenantRoles(@Nullable String query, Pageable pageable, UUID tenantId) {
-        var spec = Specification.allOf(
-                TenantRoleSpecification.hasTenantId(tenantId),
-                TenantRoleSpecification.hasName(query));
-        var result = tenantRoleRepository.findAll(spec, pageable);
-        result.forEach(role -> Hibernate.initialize(role.getPermissions()));
-        return result;
     }
 
     @Transactional(readOnly = true)
@@ -162,20 +149,5 @@ public class TenantRoleService implements TenantRoleManagementPort {
         }
         log.info("Tenant role={} in tenant={} is now {}", id, tenantId, active ? "active" : "inactive");
         return tenantRoleRepository.save(tenantRole);
-    }
-
-    @Transactional
-    public void deleteTenantRole(UUID id, UUID tenantId) {
-        var tenantRoleQueryResult = tenantRoleRepository.findByIdAndTenantId(id, tenantId);
-        if (tenantRoleQueryResult.isEmpty()) {
-            throw new EntityNotFoundException("Tenant role not found for id: " + id);
-        }
-        var tenantRole = tenantRoleQueryResult.get();
-        try {
-            tenantRoleRepository.delete(tenantRole);
-        } catch (Exception e) {
-            log.info("Error deleting tenant role for tenant={} with id={}: {}", tenantId, id, e.getMessage(), e);
-            throw e;
-        }
     }
 }

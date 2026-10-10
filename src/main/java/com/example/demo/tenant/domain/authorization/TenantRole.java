@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
-import org.apache.commons.lang3.builder.ToStringExclude;
 import org.hibernate.annotations.SoftDelete;
 import org.hibernate.annotations.SoftDeleteType;
 import com.example.demo.entity.BaseEntity;
@@ -29,7 +28,6 @@ public class TenantRole extends BaseEntity {
 
 	@OneToMany(mappedBy = "role", orphanRemoval = true, cascade = jakarta.persistence.CascadeType.ALL, fetch = FetchType.LAZY)
 	@JsonIgnore
-	@ToStringExclude
 	private Set<TenantRolePermission> permissions;
 
 	public Set<TenantRolePermission> getPermissions() {

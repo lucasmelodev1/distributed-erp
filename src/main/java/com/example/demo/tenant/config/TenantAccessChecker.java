@@ -12,8 +12,7 @@ import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository
 
 /**
  * The single place that decides whether a user may run a {@link TenantAware}
- * operation in a tenant. Used by both the GraphQL access instrumentation and the
- * legacy REST interceptor so they cannot drift apart.
+ * operation in a tenant. Called by the GraphQL access instrumentation.
  *
  * <p>Rules, in order: the user must be a member; the membership must be active;
  * the tenant must be active (unless the operation allows inactive tenants); and

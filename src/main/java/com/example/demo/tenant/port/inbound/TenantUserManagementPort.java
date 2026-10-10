@@ -8,17 +8,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Window;
 import com.example.demo.tenant.domain.authorization.TenantRole;
-import org.springframework.data.domain.Pageable;
 
 import com.example.demo.tenant.adapter.web.dto.user.InactivateTenantUserRequest;
 import com.example.demo.tenant.adapter.web.dto.user.UpdateTenantUserRequest;
 import com.example.demo.tenant.domain.TenantUser;
 
 public interface TenantUserManagementPort {
-    Page<TenantUser> findAllTenantUsers(@Nullable String query, @Nullable Boolean active, Pageable pageable, UUID tenantId);
     /** Forward keyset page ordered by user id (creation time of the user). */
     Window<TenantUser> scrollTenantUsers(@Nullable String query, @Nullable Boolean active, int limit,
             @Nullable UUID after, UUID tenantId);
