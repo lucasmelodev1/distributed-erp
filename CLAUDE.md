@@ -18,16 +18,16 @@ Tests import `TestcontainersConfiguration` (MySQL 8.0, Kafka, Redis, Grafana), s
 Hexagonal (ports & adapters) per feature module (`tenant`, `user`):
 
 - `domain/`: entities, value objects, business rules. JPA annotations are allowed.
-- `port/inbound/`: use-case interfaces consumed by controllers (e.g. `TenantManagementPort`, `AuthPort`). There is no `port/outbound/`; repositories are injected directly.
+- `port/inbound/`: use-case interfaces consumed by data fetchers (e.g. `TenantManagementPort`, `AuthPort`). There is no `port/outbound/`; repositories are injected directly.
 - `adapter/inbound/`: application services implementing inbound ports (e.g. `TenantService`).
 - `adapter/outbound/persistence/`: Spring Data repositories.
-- `adapter/web/`: legacy REST controllers (being replaced by GraphQL, removed at cutover) and `dto/` records. The records are named `{Action}{Request|Response}` for now and will be renamed `{Action}Input` / `{Action}Payload` at cutover to match the GraphQL types.
-- `adapter/web/graphql/`: Netflix DGS data fetchers (`@DgsComponent`). They replace the controllers.
-- `config/`: feature-specific Spring config (tenant context, interceptor).
+- `adapter/web/dto/`: the use cases' input and payload records, named `{Action}Input` / `{Action}Payload` to match the GraphQL types. They carry the Jakarta validation constraints and are also the parameters and results of the inbound ports (a deliberate simplification: there is no separate port-level command type).
+- `adapter/web/graphql/`: Netflix DGS data fetchers (`@DgsComponent`) and DataLoaders. This is the whole API surface.
+- `config/`: feature-specific Spring config (tenant context, access checker). Global GraphQL, security and error handling live in the top-level `config/` and `config/graphql/` packages.
 
 Rules:
-- Controllers and data fetchers depend on ports, never on service implementations.
-- Ports reference domain types or their own records, never web DTOs.
+- Data fetchers depend on ports, never on service implementations.
+- Ports take and return domain types or the `adapter/web/dto` records; they never expose GraphQL or servlet types (the HTTP request/response are passed only where login must set the session cookie).
 - Services orchestrate (fetch, call domain methods, persist). Business rules live on the domain class.
 - Anything that takes ids of another aggregate (roles, users, ...) must check they belong to the current tenant.
 
@@ -38,7 +38,7 @@ Non-obvious shared packages:
 
 ## GraphQL (Netflix DGS)
 
-The API is moving from REST to GraphQL. **Do not add new REST controllers.** Migrated features have a schema file and a data fetcher; remaining REST controllers are removed once every feature is migrated.
+The API is GraphQL only: `POST /graphql`. There are no REST controllers; **do not add any**. Each feature has a schema file and a data fetcher.
 
 Schema:
 - Schema-first, in `src/main/resources/schema/*.graphqls`, one file per feature. `auth.graphqls` declares the root `Mutation` type; every other file uses `extend type Query` / `extend type Mutation`. Test-only schema lives in `src/test/resources/schema/`.
@@ -60,7 +60,7 @@ Data fetchers:
 Access control (in `config/graphql/`, enforced for every top-level Query/Mutation):
 - **Default-deny.** An operation requires an authenticated user unless its method is annotated `@PublicOperation`. `@PublicOperation` cannot be combined with `@TenantAware`.
 - `@TenantAware(withPermissions = ...)` works on data fetcher methods like it did on controllers: it needs a valid `X-Tenant-Id` header for a tenant the user belongs to, plus every listed permission. `TenantContext.getTenantId()` is only set while the top-level fetcher runs, so pass the tenant id explicitly to nested fetchers and DataLoaders.
-- Access decisions live in one place, `TenantAccessChecker` (used by the GraphQL instrumentation and the legacy REST interceptor). In order: the user must be a member; the membership must be active; the tenant must be active; every permission must come from an active, non-deleted role. Inactive means `inactivated_at` is set: an inactive member is denied in that tenant, an inactive tenant rejects every tenant-aware operation, and an inactive role stays assigned but grants nothing. Only operations that reverse an inactive tenant (`reactivateTenant`) set `@TenantAware(allowInactiveTenant = true)`.
+- Access decisions live in one place, `TenantAccessChecker` (called by the GraphQL access instrumentation). In order: the user must be a member; the membership must be active; the tenant must be active; every permission must come from an active, non-deleted role. Inactive means `inactivated_at` is set: an inactive member is denied in that tenant, an inactive tenant rejects every tenant-aware operation, and an inactive role stays assigned but grants nothing. Only operations that reverse an inactive tenant (`reactivateTenant`) set `@TenantAware(allowInactiveTenant = true)`.
 - Tenants and roles are never deleted through the API: expose `inactivateX` / `reactivateX` mutations (permission `x:inactivate`), with `active` and `inactivatedAt` on the type. Members can additionally be removed (`removeTenantUser`, permission `tenants:expel`): a soft delete that also drops their role assignments, after which they can rejoin only through a new invitation. A caller cannot inactivate or remove themselves.
 - Failures return HTTP 200 with an `errors` entry whose `extensions.code` is `UNAUTHORIZED`, `FORBIDDEN`, `BAD_REQUEST`, `NOT_FOUND` or `INTERNAL_ERROR`. `GraphQlExceptionResolver` maps `AuthenticationException`, `AccessDeniedException`, `IllegalArgumentException`, `ConstraintViolationException` and `EntityNotFoundException`; anything else is logged and returned as a generic internal error. Throw exceptions; do not encode errors in payloads.
 - Query depth is limited to 10 and complexity to 200 (`app.graphql.*`). Introspection and GraphiQL are enabled only in the `dev` profile.
@@ -105,15 +105,13 @@ Access control (in `config/graphql/`, enforced for every top-level Query/Mutatio
 
 - Sessions are Redis-backed Spring sessions; GraphQL uses the same `SESSION` cookie (set by the `login` / `registerUser` mutations).
 - Annotate tenant-scoped controller methods or data fetcher methods with `@TenantAware`. The interceptor requires a valid `X-Tenant-Id`, verifies membership, sets `TenantContext`, and checks every permission in `withPermissions` (e.g. `@TenantAware(withPermissions = "tenants:update")`).
-- (Legacy REST) `/api/v1/auth/**` bypasses tenant validation. Security also permits `/v3/api-docs/**`, `/swagger-ui/**`, and `/scalar/**`.
+- At the HTTP level only `/graphql` (and `/graphiql/**` in the dev profile) is permitted anonymously; authentication is enforced per operation (default-deny, see GraphQL above).
 
 ## Testing
 
-- `BaseIntegrationTest`: MockMvc integration tests; imports Testcontainers and is `@Transactional`. Attach the user per request with Spring Security's `user(...)` postprocessor.
-- `BaseGraphQlTest` (extends `BaseControllerTest`): HTTP tests against `/graphql`. Use `graphql(...)`, `graphqlAs(...)` and `assertGraphQlError(response, "FORBIDDEN")`; pass inputs as variables. Failures are HTTP 200 with `errors`, so assert on `$.errors[0].extensions.classification`.
-- `BaseControllerTest`: random-port controller tests on the `test` profile, with helpers for the `SESSION` cookie and tenant headers. Use `RestTestClient`.
+- `BaseGraphQlTest`: the base for every integration test. It runs the app on a random port with the `test` profile and the Testcontainers services, and logs users in through GraphQL. Use `graphql(...)`, `graphqlAs(...)`, `graphqlIn(tenantId, user, ...)` and `assertGraphQlError(response, "FORBIDDEN")`; pass inputs as variables. Failures are HTTP 200 with `errors`, so assert on `$.errors[0].extensions.classification`.
 - The `test` profile swaps in `EmailServiceTestImpl` and `TokenServiceTestImpl`, so generated numeric codes are all zeroes.
-- `BaseControllerTest` clears `auth_tokens` and the captured emails before each test, because all test tokens are identical. Do not rely on state left over from another test.
+- `BaseGraphQlTest` clears `auth_tokens` and the captured emails before each test, because all test tokens are identical. Do not rely on state left over from another test.
 - The test profile records every email in `SentEmails`. Read what a user would receive with `sentEmails.lastTextTo(address)` (the six-character token, or the invitation link) instead of calling `tokenService.generate()`.
 - `BaseGraphQlTest` has `newTenant`, `newRole`, `graphqlIn(tenantId, user, ...)` and `variables(...)` for the common setup.
 - Create users through repositories/services. Use the tenant creation endpoint when the test is meant to exercise tenant initialization and role/permission setup.
