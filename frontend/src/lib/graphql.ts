@@ -17,6 +17,8 @@ export function onUnauthorized(listener: UnauthorizedListener) {
 export function createClient() {
   return new Client({
     url: "/graphql",
+    // The API only accepts POST; urql 5 would send short queries as GET by default.
+    preferGetMethod: false,
     exchanges: [
       cacheExchange,
       mapExchange({
