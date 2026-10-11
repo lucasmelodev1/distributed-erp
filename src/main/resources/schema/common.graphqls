@@ -18,3 +18,6 @@ type Query {
 	"""Always returns true. Use it to check that the GraphQL endpoint is reachable."""
 	ping: Boolean!
 }
+
+"""A decimal number sent and returned as a string, e.g. "12.5000000000". Integers are accepted as input too."""
+scalar Decimal

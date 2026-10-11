@@ -97,6 +97,16 @@ class TenantAccessMatrixGraphQlTest extends BaseGraphQlTest {
 				variables("input", variables("email", "matrix@mail.com", "tenantRoleIds", List.of(SOME_ID))));
 		mutation("revokeInvitation", "RevokeInvitationInput", "invitation { id }", INVITATION_INPUT);
 		mutation("resendInvitation", "ResendInvitationInput", "invitation { id }", INVITATION_INPUT);
+
+		query("products", "products { pageInfo { hasNextPage } }", NONE);
+		query("product", "product(id: $id) { id }", variables("id", SOME_ID), "$id: UUID!");
+		mutation("createProduct", "CreateProductInput", "product { id }",
+				variables("input", variables("name", "x", "price", "1")));
+		mutation("updateProduct", "UpdateProductInput", "product { id }",
+				variables("input", variables("id", SOME_ID, "name", "x", "price", "1")));
+		mutation("inactivateProduct", "ProductIdInput", "product { id }", ID_INPUT);
+		mutation("reactivateProduct", "ProductIdInput", "product { id }", ID_INPUT);
+		mutation("deleteProduct", "ProductIdInput", "success", ID_INPUT);
 	}
 
 	/** Operation name to the permissions it requires, read from the {@code @TenantAware} data fetchers. */

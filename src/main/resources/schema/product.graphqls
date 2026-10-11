@@ -1,0 +1,109 @@
+"""A product sold by a tenant."""
+type Product {
+	id: UUID!
+	name: String!
+	"""Tenant-unique code, compared case-insensitively. Absent when the product has none."""
+	sku: String
+	description: String
+	"""Price with up to 10 decimal places, as a string to stay lossless (e.g. "12.5000000000")."""
+	price: Decimal!
+	"""An inactive product stays in the catalog but is flagged as unavailable."""
+	active: Boolean!
+	inactivatedAt: DateTime
+	createdAt: DateTime
+	updatedAt: DateTime
+}
+
+enum ProductStatus {
+	ACTIVE
+	INACTIVE
+}
+
+type ProductConnection {
+	edges: [ProductEdge!]!
+	pageInfo: PageInfo!
+}
+
+type ProductEdge {
+	node: Product!
+	cursor: String!
+}
+
+extend type Query {
+	"""
+	Products of the tenant selected by X-Tenant-Id, oldest first. Requires the products:read permission.
+	"""
+	products(
+		"""Page size, 1 to 100."""
+		first: Int = 20
+		"""Return the products after this cursor (a pageInfo.endCursor)."""
+		after: String
+		"""Only products whose name or SKU contains this text. Empty or omitted matches every product."""
+		query: String
+		"""Only active or only inactive products. Omitted returns both."""
+		status: ProductStatus
+	): ProductConnection!
+
+	"""A product of the tenant selected by X-Tenant-Id. Requires the products:read permission."""
+	product(id: UUID!): Product!
+}
+
+extend type Mutation {
+	"""Requires the products:write permission."""
+	createProduct(input: CreateProductInput!): CreateProductPayload!
+
+	"""Replaces name, SKU, description and price of the product. Requires the products:write permission."""
+	updateProduct(input: UpdateProductInput!): UpdateProductPayload!
+
+	"""Requires the products:write permission."""
+	inactivateProduct(input: ProductIdInput!): InactivateProductPayload!
+
+	"""Requires the products:write permission."""
+	reactivateProduct(input: ProductIdInput!): ReactivateProductPayload!
+
+	"""Removes the product from the API; its SKU stays reserved. Requires the products:delete permission."""
+	deleteProduct(input: ProductIdInput!): DeleteProductPayload!
+}
+
+input CreateProductInput {
+	"""Up to 255 characters, unique within the tenant."""
+	name: String!
+	"""Up to 100 characters, unique within the tenant. Blank is treated as absent."""
+	sku: String
+	"""Up to 1000 characters."""
+	description: String
+	"""Zero or more, at most 10 decimal places and 9 integer digits."""
+	price: Decimal!
+}
+
+type CreateProductPayload {
+	product: Product!
+}
+
+input UpdateProductInput {
+	id: UUID!
+	name: String!
+	sku: String
+	description: String
+	price: Decimal!
+}
+
+type UpdateProductPayload {
+	product: Product!
+}
+
+input ProductIdInput {
+	id: UUID!
+}
+
+type InactivateProductPayload {
+	product: Product!
+}
+
+type ReactivateProductPayload {
+	product: Product!
+}
+
+type DeleteProductPayload {
+	success: Boolean!
+}
