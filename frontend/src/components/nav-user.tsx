@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { toast } from "@/components/ui/toast"
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -75,7 +76,13 @@ export function NavUser({ user }: { user: SessionUser }) {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <CompanySwitcher />
-            <DropdownMenuItem onClick={() => void logout()}>
+            <DropdownMenuItem
+              onClick={() =>
+                void logout().then(() =>
+                  toast.add({ title: "Logged out", type: "success" })
+                )
+              }
+            >
               <LogOutIcon />
               Log out
             </DropdownMenuItem>

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
+import { toast } from "@/components/ui/toast"
 import { FormError } from "@/features/auth/auth-layout"
 import { useCompanies } from "@/features/tenants/tenant-context"
 import { graphql } from "@/gql"
@@ -80,6 +81,11 @@ export function CompanyFormPage() {
       const result = await rename({ input }, tenantContext(id))
       if (result.error) return
       await refresh()
+      toast.add({
+        title: "Company updated",
+        description: `${input.name} was saved.`,
+        type: "success",
+      })
       void navigate("/companies")
       return
     }
@@ -88,6 +94,11 @@ export function CompanyFormPage() {
     if (!created) return
     select(created.id)
     await refresh()
+    toast.add({
+      title: "Company created",
+      description: `${created.name} is now your selected company.`,
+      type: "success",
+    })
     void navigate("/companies")
   }
 

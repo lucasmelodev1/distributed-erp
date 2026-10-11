@@ -7,6 +7,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
+import { toast } from "@/components/ui/toast"
 import { useCompanies } from "@/features/tenants/tenant-context"
 
 /** The "Companies" section of the user dropdown: switch company or create one. */
@@ -24,7 +25,14 @@ export function CompanySwitcher() {
             key={company.id}
             // An inactive company rejects every request; reactivate it from the Companies page.
             disabled={!company.active}
-            onClick={() => select(company.id)}
+            onClick={() => {
+              select(company.id)
+              toast.add({
+                title: "Company changed",
+                description: `Now working in ${company.name}.`,
+                type: "success",
+              })
+            }}
             className="gap-2 p-2"
           >
             <span className="truncate">{company.name}</span>

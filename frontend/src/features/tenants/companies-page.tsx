@@ -48,6 +48,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { toast } from "@/components/ui/toast"
 import { FormError } from "@/features/auth/auth-layout"
 import { type Company, useCompanies } from "@/features/tenants/tenant-context"
 import { graphql } from "@/gql"
@@ -185,7 +186,14 @@ export function CompaniesPage() {
                         <DropdownMenuGroup>
                           {company.active && (
                             <DropdownMenuItem
-                              onClick={() => select(company.id)}
+                              onClick={() => {
+                                select(company.id)
+                                toast.add({
+                                  title: "Company changed",
+                                  description: `Now working in ${company.name}.`,
+                                  type: "success",
+                                })
+                              }}
                             >
                               Switch to this company
                             </DropdownMenuItem>
@@ -249,8 +257,17 @@ export function CompaniesPage() {
                 if (!toInactivate) return
                 // AlertDialogAction is a plain Button here, so it does not close the dialog itself.
                 setToInactivate(null)
+                const { name } = toInactivate
                 void inactivate({}, tenantContext(toInactivate.id)).then(
-                  refresh
+                  async (result) => {
+                    await refresh()
+                    if (!result.error)
+                      toast.add({
+                        title: "Company inactivated",
+                        description: `${name} is now inactive.`,
+                        type: "success",
+                      })
+                  }
                 )
               }}
             >

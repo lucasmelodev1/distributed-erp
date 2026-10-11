@@ -5,6 +5,7 @@ import { Provider } from "urql"
 import "./index.css"
 import App from "./App.tsx"
 import { ThemeProvider } from "@/components/theme-provider.tsx"
+import { Toaster } from "@/components/ui/toast.tsx"
 import { TooltipProvider } from "@/components/ui/tooltip.tsx"
 import { SessionProvider } from "@/features/auth/session.tsx"
 import { createClient } from "@/lib/graphql.ts"
@@ -17,7 +18,9 @@ createRoot(document.getElementById("root")!).render(
       <Provider value={client}>
         <SessionProvider>
           <TooltipProvider>
-            <App />
+            <Toaster>
+              <App />
+            </Toaster>
           </TooltipProvider>
         </SessionProvider>
       </Provider>
