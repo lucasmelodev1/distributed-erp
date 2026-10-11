@@ -4,7 +4,6 @@ import com.example.demo.tenant.domain.TenantUserId;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -18,27 +17,22 @@ public interface TenantUserRepository
 		extends
 		JpaRepository<TenantUser, TenantUserId>,
 		JpaSpecificationExecutor<TenantUser> {
-	/** Whether a membership and its tenant are currently inactive; null timestamps mean active. */
-	record MembershipState(@Nullable Instant memberInactivatedAt, @Nullable Instant tenantInactivatedAt) {
-		public boolean memberActive() {
-			return memberInactivatedAt == null;
-		}
-
-		public boolean tenantActive() {
-			return tenantInactivatedAt == null;
-		}
+	/** A membership of one user and the inactive state of it and of its tenant; null timestamps mean active. */
+	record MembershipRow(UUID tenantId, @Nullable Instant memberInactivatedAt, @Nullable Instant tenantInactivatedAt) {
 	}
 
-	/** One query for both states; empty if the user is not a (non-removed) member of a (non-deleted) tenant. */
+	/** All (non-removed) memberships of a user in non-deleted tenants, in one query. */
 	@Query("""
-			SELECT new com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository$MembershipState(
-				tu.inactivatedAt, t.inactivatedAt)
+			SELECT new com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository$MembershipRow(
+				tu.id.tenantId, tu.inactivatedAt, t.inactivatedAt)
 			FROM TenantUser tu
 			JOIN Tenant t ON t.id = tu.id.tenantId
-			WHERE tu.id.tenantId = :tenantId
-				AND tu.id.userId = :userId
+			WHERE tu.id.userId = :userId
 			""")
-	Optional<MembershipState> findMembershipState(@Param("tenantId") UUID tenantId, @Param("userId") UUID userId);
+	List<MembershipRow> findMemberships(@Param("userId") UUID userId);
+
+	@Query("SELECT tu.id.userId FROM TenantUser tu WHERE tu.id.tenantId = :tenantId")
+	List<UUID> findUserIdsByTenantId(@Param("tenantId") UUID tenantId);
 
 	/**
 	 * Brings back a membership that was removed (soft-deleted). Native because the

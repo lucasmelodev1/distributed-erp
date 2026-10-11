@@ -27,6 +27,7 @@ import com.example.demo.tenant.adapter.outbound.persistence.TenantInvitationRole
 import com.example.demo.tenant.adapter.outbound.persistence.TenantInvitationRoleRepository.InvitationRoleRow;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantRepository;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository;
+import com.example.demo.tenant.config.AccessCache;
 import com.example.demo.tenant.domain.Tenant;
 import com.example.demo.tenant.domain.TenantUser;
 import com.example.demo.tenant.domain.TenantUserId;
@@ -54,6 +55,7 @@ public class TenantInvitationService implements TenantInvitationPort {
 	private final UserProfilePort userService;
 	private final EmailService emailService;
 	private final EnvUtils envUtils;
+	private final AccessCache accessCache;
 
 	@Value("${TENANT_INVITATION_FROM:invitations@example.com}")
 	private String invitationFrom;
@@ -72,7 +74,8 @@ public class TenantInvitationService implements TenantInvitationPort {
 			TenantRoleChecks roleChecks,
 			UserProfilePort userService,
 			EmailService emailService,
-			EnvUtils envUtils) {
+			EnvUtils envUtils,
+			AccessCache accessCache) {
 		this.invitationRepository = invitationRepository;
 		this.invitationRoleRepository = invitationRoleRepository;
 		this.tenantRepository = tenantRepository;
@@ -81,6 +84,7 @@ public class TenantInvitationService implements TenantInvitationPort {
 		this.userService = userService;
 		this.emailService = emailService;
 		this.envUtils = envUtils;
+		this.accessCache = accessCache;
 	}
 
 	@Transactional
@@ -240,6 +244,7 @@ public class TenantInvitationService implements TenantInvitationPort {
 		} else {
 			tenantUserRepository.save(TenantUser.joining(tenantId, userId, roleIds));
 		}
+		accessCache.invalidateUser(userId);
 	}
 
 	/** The email service publishes only after the transaction commits, so a rolled-back invitation sends nothing. */

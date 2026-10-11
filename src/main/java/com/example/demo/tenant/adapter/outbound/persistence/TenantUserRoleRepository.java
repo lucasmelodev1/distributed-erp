@@ -17,6 +17,12 @@ public interface TenantUserRoleRepository extends JpaRepository<TenantUserRole, 
 	record UserRoleRow(UUID userId, TenantRole role) {
 	}
 
+	@Query("""
+			SELECT tur.id.userId FROM TenantUserRole tur
+			WHERE tur.id.tenantId = :tenantId AND tur.id.tenantRoleId = :roleId
+			""")
+	List<UUID> findUserIdsByRole(@Param("tenantId") UUID tenantId, @Param("roleId") UUID roleId);
+
 	/** Roles of several users of one tenant in a single query. */
 	@Query("""
 			SELECT new com.example.demo.tenant.adapter.outbound.persistence.TenantUserRoleRepository$UserRoleRow(

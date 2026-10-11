@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRoleRepository;
 import com.example.demo.tenant.adapter.web.dto.user.UpdateTenantUserInput;
+import com.example.demo.tenant.config.AccessCache;
 import com.example.demo.tenant.domain.TenantUser;
 import com.example.demo.tenant.domain.TenantUserId;
 import com.example.demo.tenant.domain.TenantUserSpecification;
@@ -38,14 +39,17 @@ public class TenantUserService implements TenantUserManagementPort {
     private final TenantUserRepository tenantUserRepository;
     private final TenantUserRoleRepository tenantUserRoleRepository;
     private final TenantRoleChecks roleChecks;
+    private final AccessCache accessCache;
 
     TenantUserService(
             TenantUserRepository tenantUserRepository,
             TenantUserRoleRepository tenantUserRoleRepository,
-            TenantRoleChecks roleChecks) {
+            TenantRoleChecks roleChecks,
+            AccessCache accessCache) {
         this.tenantUserRepository = tenantUserRepository;
         this.tenantUserRoleRepository = tenantUserRoleRepository;
         this.roleChecks = roleChecks;
+        this.accessCache = accessCache;
     }
 
     @Transactional(readOnly = true)
@@ -99,6 +103,7 @@ public class TenantUserService implements TenantUserManagementPort {
             tenantUser.inactivate();
         }
         tenantUserRepository.save(tenantUser);
+        accessCache.invalidateUser(userId);
 
         log.info("Inactivated tenant user for tenant={} and user={}", tenantId, userId);
     }
@@ -112,6 +117,7 @@ public class TenantUserService implements TenantUserManagementPort {
                 .orElseThrow(() -> new EntityNotFoundException("Tenant user not found"));
         // Soft delete; the cascade also removes the role assignments, so a returning member starts clean.
         tenantUserRepository.delete(tenantUser);
+        accessCache.invalidateUser(userId);
         log.info("Removed user={} from tenant={}", userId, tenantId);
     }
 
@@ -139,6 +145,7 @@ public class TenantUserService implements TenantUserManagementPort {
 
         try {
             tenantUserRepository.save(tenantUser);
+            accessCache.invalidateUser(userId);
         } catch (Exception e) {
             log.warn("Error updating tenant user roles for tenant={} and user={}: {}",
                     tenantId,

@@ -14,6 +14,7 @@ import org.springframework.data.domain.Window;
 import com.example.demo.tenant.adapter.outbound.persistence.PermissionRepository;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantRolePermissionRepository;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantRolePermissionRepository.RolePermissionRow;
+import com.example.demo.tenant.config.AccessCache;
 import com.example.demo.tenant.domain.authorization.Permission;
 import jakarta.persistence.EntityNotFoundException;
 import org.jspecify.annotations.Nullable;
@@ -36,13 +37,16 @@ public class TenantRoleService implements TenantRoleManagementPort {
     private final TenantRoleRepository tenantRoleRepository;
     private final TenantRolePermissionRepository tenantRolePermissionRepository;
     private final PermissionRepository permissionRepository;
+    private final AccessCache accessCache;
 
     public TenantRoleService(TenantRoleRepository tenantRoleRepository,
             TenantRolePermissionRepository tenantRolePermissionRepository,
-            PermissionRepository permissionRepository) {
+            PermissionRepository permissionRepository,
+            AccessCache accessCache) {
         this.tenantRoleRepository = tenantRoleRepository;
         this.tenantRolePermissionRepository = tenantRolePermissionRepository;
         this.permissionRepository = permissionRepository;
+        this.accessCache = accessCache;
     }
 
     private void requireKnownPermissions(Collection<String> codes) {
@@ -130,7 +134,9 @@ public class TenantRoleService implements TenantRoleManagementPort {
         tenantRole.getPermissions().addAll(permissions);
 
         try {
-            return tenantRoleRepository.save(tenantRole);
+            var saved = tenantRoleRepository.save(tenantRole);
+            accessCache.invalidateRole(tenantId, saved.getId());
+            return saved;
         } catch (Exception e) {
             log.info("Error updating tenant role for tenant={} with name={}: {}", tenantId, dto.name(), e.getMessage(),
                     e);
@@ -153,6 +159,7 @@ public class TenantRoleService implements TenantRoleManagementPort {
             tenantRole.inactivate();
         }
         log.info("Tenant role={} in tenant={} is now {}", id, tenantId, active ? "active" : "inactive");
+        accessCache.invalidateRole(tenantId, id);
         return tenantRoleRepository.save(tenantRole);
     }
 }

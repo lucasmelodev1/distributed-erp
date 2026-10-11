@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 import com.example.demo.BaseGraphQlTest;
 import com.example.demo.TestUser;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantRoleRepository;
+import com.example.demo.tenant.config.AccessCache;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRoleRepository;
 import com.example.demo.tenant.domain.TenantUser;
@@ -55,6 +56,8 @@ class TenantRoleGraphQlTest extends BaseGraphQlTest {
 	private EntityManagerFactory entityManagerFactory;
 	@Autowired
 	private TenantRoleRepository tenantRoleRepository;
+	@Autowired
+	private AccessCache accessCache;
 
 	private TestUser alpha;
 	private TestUser beta;
@@ -284,6 +287,8 @@ class TenantRoleGraphQlTest extends BaseGraphQlTest {
 		in(holder.tenantId(), holder.member(), ROLES, vars()).expectBody().jsonPath("$.errors").doesNotExist();
 
 		tenantRoleRepository.deleteById(holder.roleId());
+		// Deleting behind the services' back must be announced, or the cached grants stay.
+		accessCache.invalidateRole(holder.tenantId(), holder.roleId());
 		assertGraphQlError(in(holder.tenantId(), holder.member(), ROLES, vars()), "FORBIDDEN");
 	}
 

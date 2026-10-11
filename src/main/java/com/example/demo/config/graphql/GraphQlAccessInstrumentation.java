@@ -1,6 +1,5 @@
 package com.example.demo.config.graphql;
 
-import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.security.access.AccessDeniedException;
@@ -8,7 +7,7 @@ import org.springframework.security.authentication.AuthenticationCredentialsNotF
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
-import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository.MembershipState;
+import com.example.demo.tenant.config.AccessSnapshot;
 import com.example.demo.tenant.config.TenantAccessChecker;
 import com.example.demo.tenant.config.TenantAware;
 import com.example.demo.tenant.config.TenantContext;
@@ -21,6 +20,7 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchPar
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.GraphQLTypeUtil;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Enforces authentication, tenant membership and permissions on every
@@ -81,7 +81,7 @@ class GraphQlAccessInstrumentation extends SimplePerformantInstrumentation {
 		}
 
 		var tenant = resolveTenant(context, user);
-		var decision = accessChecker.check(tenant.membership(), tenant.id(), user.getId(), tenantAware);
+		var decision = accessChecker.check(tenant.snapshot(), tenant.id(), tenantAware);
 		if (!decision.granted()) {
 			throw new AccessDeniedException(decision.message());
 		}
@@ -97,11 +97,11 @@ class GraphQlAccessInstrumentation extends SimplePerformantInstrumentation {
 		return user;
 	}
 
-	/** The tenant a request selected and the caller's membership in it. */
-	private record SelectedTenant(UUID id, Optional<MembershipState> membership) {
+	/** The tenant a request selected and the caller's access snapshot. */
+	private record SelectedTenant(UUID id, AccessSnapshot snapshot) {
 	}
 
-	/** Parses the tenant header and loads the membership once per request, caching both. */
+	/** Parses the tenant header and reads the access snapshot once per request, caching both. */
 	private SelectedTenant resolveTenant(GraphQLContext context, User user) {
 		SelectedTenant cached = context.get(GraphQlContextKeys.SELECTED_TENANT);
 		if (cached != null) {
@@ -122,7 +122,11 @@ class GraphQlAccessInstrumentation extends SimplePerformantInstrumentation {
 					"Invalid UUID format for header: " + TenantContext.TENANT_ID_HEADER);
 		}
 
-		var selected = new SelectedTenant(tenantId, accessChecker.findMembership(tenantId, user.getId()));
+		HttpServletRequest request = context.get(GraphQlContextKeys.HTTP_REQUEST);
+		if (request == null) {
+			throw new IllegalStateException("No HTTP request is bound to this GraphQL execution");
+		}
+		var selected = new SelectedTenant(tenantId, accessChecker.snapshot(request, user.getId()));
 		context.put(GraphQlContextKeys.SELECTED_TENANT, selected);
 		return selected;
 	}

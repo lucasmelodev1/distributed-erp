@@ -1,14 +1,12 @@
 package com.example.demo.tenant.config;
 
-import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
-import com.example.demo.tenant.adapter.outbound.persistence.PermissionCheckRepository;
-import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository;
-import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository.MembershipState;
+import jakarta.servlet.http.HttpServletRequest;
+
 
 /**
  * The single place that decides whether a user may run a {@link TenantAware}
@@ -55,33 +53,30 @@ public class TenantAccessChecker {
 		}
 	}
 
-	private final TenantUserRepository tenantUserRepository;
-	private final PermissionCheckRepository permissionCheckRepository;
+	private final AccessSnapshotStore snapshotStore;
 
-	public TenantAccessChecker(TenantUserRepository tenantUserRepository,
-			PermissionCheckRepository permissionCheckRepository) {
-		this.tenantUserRepository = tenantUserRepository;
-		this.permissionCheckRepository = permissionCheckRepository;
+	public TenantAccessChecker(AccessSnapshotStore snapshotStore) {
+		this.snapshotStore = snapshotStore;
 	}
 
-	/** Loads the membership and tenant state; callers may cache it for the duration of a request. */
-	public Optional<MembershipState> findMembership(UUID tenantId, UUID userId) {
-		return tenantUserRepository.findMembershipState(tenantId, userId);
+	/** The user's cached access data; loaded from the database only when the session has none or it is stale. */
+	public AccessSnapshot snapshot(HttpServletRequest request, UUID userId) {
+		return snapshotStore.snapshotFor(request, userId);
 	}
 
-	public Decision check(Optional<MembershipState> membership, UUID tenantId, UUID userId,
-			TenantAware requirements) {
-		if (membership.isEmpty()) {
+	public Decision check(AccessSnapshot snapshot, UUID tenantId, TenantAware requirements) {
+		var access = snapshot.tenants().get(tenantId);
+		if (access == null) {
 			return new Decision(Denial.NOT_A_MEMBER, null);
 		}
-		if (!membership.get().memberActive()) {
+		if (!access.memberActive()) {
 			return new Decision(Denial.MEMBERSHIP_INACTIVE, null);
 		}
-		if (!membership.get().tenantActive() && !requirements.allowInactiveTenant()) {
+		if (!access.tenantActive() && !requirements.allowInactiveTenant()) {
 			return new Decision(Denial.TENANT_INACTIVE, null);
 		}
 		for (String permission : requirements.withPermissions()) {
-			if (!permissionCheckRepository.hasPermission(userId, tenantId, permission)) {
+			if (!access.permissions().contains(permission)) {
 				return new Decision(Denial.MISSING_PERMISSION, permission);
 			}
 		}

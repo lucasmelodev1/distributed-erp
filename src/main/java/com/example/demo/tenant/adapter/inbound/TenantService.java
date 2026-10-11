@@ -23,6 +23,7 @@ import com.example.demo.tenant.domain.authorization.TenantUserRoleId;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRoleRepository;
 import com.example.demo.tenant.adapter.web.dto.tenant.CreateTenantInput;
 import com.example.demo.tenant.adapter.web.dto.tenant.UpdateTenantInput;
+import com.example.demo.tenant.config.AccessCache;
 import com.example.demo.tenant.domain.Tenant;
 import com.example.demo.tenant.domain.TenantUser;
 import com.example.demo.tenant.domain.TenantUserId;
@@ -40,6 +41,7 @@ public class TenantService implements TenantManagementPort {
 	private final TenantUserRoleRepository tenantUserRoleRepository;
 	private final TenantRolePermissionRepository tenantRolePermissionRepository;
 	private final PermissionRepository permissionRepository;
+	private final AccessCache accessCache;
 
 	@Value("${FRONTEND_URL:http://localhost:5173}")
 	private String frontendUrl;
@@ -50,13 +52,15 @@ public class TenantService implements TenantManagementPort {
 			TenantRoleRepository tenantRoleRepository,
 			TenantUserRoleRepository tenantUserRoleRepository,
 			TenantRolePermissionRepository tenantRolePermissionRepository,
-			PermissionRepository permissionRepository) {
+			PermissionRepository permissionRepository,
+			AccessCache accessCache) {
 		this.tenantUserRepository = tenantUserRepository;
 		this.tenantRepository = tenantRepository;
 		this.tenantRoleRepository = tenantRoleRepository;
 		this.tenantUserRoleRepository = tenantUserRoleRepository;
 		this.tenantRolePermissionRepository = tenantRolePermissionRepository;
 		this.permissionRepository = permissionRepository;
+		this.accessCache = accessCache;
 	}
 
 	@Transactional(readOnly = true)
@@ -130,6 +134,7 @@ public class TenantService implements TenantManagementPort {
 			throw e;
 		}
 
+		accessCache.invalidateUser(userId);
 		return tenant;
 	}
 
@@ -160,6 +165,7 @@ public class TenantService implements TenantManagementPort {
 			tenant.inactivate();
 		}
 		log.info("Tenant={} is now {}", tenantId, active ? "active" : "inactive");
+		accessCache.invalidateTenant(tenantId);
 		return tenantRepository.save(tenant);
 	}
 
