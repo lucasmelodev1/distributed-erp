@@ -1,7 +1,17 @@
-import { BuildingIcon, LayoutDashboardIcon } from "lucide-react"
-import { NavLink } from "react-router"
+import {
+  BuildingIcon,
+  ChevronRightIcon,
+  LayoutDashboardIcon,
+  UsersIcon,
+} from "lucide-react"
+import { NavLink, useLocation } from "react-router"
 
 import { NavUser } from "@/components/nav-user"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   Sidebar,
   SidebarContent,
@@ -12,12 +22,17 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { useSession } from "@/features/auth/session"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useSession()
+  const { pathname } = useLocation()
+  const inUsers = pathname.startsWith("/users")
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -57,6 +72,49 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 )}
               </NavLink>
             </SidebarMenuItem>
+            <Collapsible defaultOpen={inUsers} render={<SidebarMenuItem />}>
+              <CollapsibleTrigger
+                render={
+                  <SidebarMenuButton
+                    tooltip="Users"
+                    isActive={inUsers}
+                    className="group/users"
+                  />
+                }
+              >
+                <UsersIcon />
+                <span>Users</span>
+                <ChevronRightIcon className="ml-auto transition-transform group-data-[panel-open]/users:rotate-90" />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarMenuSub>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton
+                      isActive={pathname === "/users"}
+                      render={<NavLink to="/users" end />}
+                    >
+                      <span>Users</span>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton
+                      isActive={pathname.startsWith("/users/invitations")}
+                      render={<NavLink to="/users/invitations" />}
+                    >
+                      <span>Invitations</span>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton
+                      isActive={pathname.startsWith("/users/roles")}
+                      render={<NavLink to="/users/roles" />}
+                    >
+                      <span>Roles</span>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                </SidebarMenuSub>
+              </CollapsibleContent>
+            </Collapsible>
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>

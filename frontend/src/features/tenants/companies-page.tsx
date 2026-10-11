@@ -8,16 +8,7 @@ import { useState } from "react"
 import { Link, useNavigate } from "react-router"
 import { useMutation } from "urql"
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -235,47 +226,29 @@ export function CompaniesPage() {
         </div>
       )}
 
-      <AlertDialog
+      <ConfirmDialog
         open={toInactivate !== null}
         onOpenChange={(open) => !open && setToInactivate(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Inactivate {toInactivate?.name}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              All its members lose access until the company is reactivated.
-              Nothing is deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                if (!toInactivate) return
-                // AlertDialogAction is a plain Button here, so it does not close the dialog itself.
-                setToInactivate(null)
-                const { name } = toInactivate
-                void inactivate({}, tenantContext(toInactivate.id)).then(
-                  async (result) => {
-                    await refresh()
-                    if (!result.error)
-                      toast.add({
-                        title: "Company inactivated",
-                        description: `${name} is now inactive.`,
-                        type: "success",
-                      })
-                  }
-                )
-              }}
-            >
-              Inactivate
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title={`Inactivate ${toInactivate?.name}?`}
+        description="All its members lose access until the company is reactivated. Nothing is deleted."
+        confirmLabel="Inactivate"
+        onConfirm={() => {
+          if (!toInactivate) return
+          const { name } = toInactivate
+          setToInactivate(null)
+          void inactivate({}, tenantContext(toInactivate.id)).then(
+            async (result) => {
+              await refresh()
+              if (!result.error)
+                toast.add({
+                  title: "Company inactivated",
+                  description: `${name} is now inactive.`,
+                  type: "success",
+                })
+            }
+          )
+        }}
+      />
     </div>
   )
 }

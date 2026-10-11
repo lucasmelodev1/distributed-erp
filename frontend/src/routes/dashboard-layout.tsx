@@ -10,7 +10,11 @@ import {
 import { CompaniesProvider } from "@/features/tenants/tenant-context"
 
 function titleFor(pathname: string) {
-  return pathname.startsWith("/companies") ? "Companies" : "Dashboard"
+  if (pathname.startsWith("/companies")) return "Companies"
+  if (pathname.startsWith("/users/roles")) return "Roles"
+  if (pathname.startsWith("/users/invitations")) return "Invitations"
+  if (pathname.startsWith("/users")) return "Users"
+  return "Dashboard"
 }
 
 export function DashboardLayout() {
