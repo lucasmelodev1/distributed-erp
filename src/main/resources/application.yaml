@@ -32,6 +32,18 @@ spring:
       redis:
         flush-mode: on_save
         namespace: spring:session
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: demo-email
+      auto-offset-reset: earliest
+    producer:
+      acks: all
+    # Spans for publishing and consuming, linked through message headers so one email is one trace.
+    template:
+      observation-enabled: true
+    listener:
+      observation-enabled: true
   mail:
     host: ${SPRING_MAIL_HOST:smtp.resend.com}
     port: ${SPRING_MAIL_PORT:587}
@@ -44,6 +56,17 @@ spring:
           starttls:
             enable: true
 app:
+  email:
+    topics:
+      partitions: 3
+      replicas: 1
+      retention: 1d
+    # Transient SMTP failures are retried on retry topics with exponential backoff
+    # (delay in ms, times multiplier per attempt); permanent ones go straight to the DLT.
+    retry:
+      attempts: 4
+      delay: 5000
+      multiplier: 3
   invitations:
     ttl: 3d
   graphql:

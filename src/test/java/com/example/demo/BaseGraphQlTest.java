@@ -9,11 +9,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
+import com.example.demo.email.RecordingEmailSender;
 import com.example.demo.email.SentEmails;
 import com.example.demo.tenant.config.TenantContext;
 import com.example.demo.user.adapter.outbound.persistence.AuthTokenRepository;
@@ -53,14 +55,29 @@ public abstract class BaseGraphQlTest {
 	@Autowired
 	protected SentEmails sentEmails;
 
+	@Autowired
+	protected RecordingEmailSender emailSender;
+
+	@Autowired
+	protected KafkaAdmin kafkaAdmin;
+
 	/**
 	 * In the test profile every generated token is the same value, so tokens left
 	 * over by other test classes sharing the database would make lookups ambiguous.
 	 */
 	@BeforeEach
 	void clearAuthTokens() {
+		// Emails travel through Kafka: let the previous test's messages (and retries) land before clearing,
+		// or a late one would show up in this test.
+		awaitEmailsProcessed();
+		emailSender.reset();
 		authTokenRepository.deleteAll();
 		sentEmails.clear();
+	}
+
+	/** Waits until the email consumer has processed everything published so far, including retries. */
+	protected void awaitEmailsProcessed() {
+		KafkaTestSupport.awaitEmailsProcessed(kafkaAdmin);
 	}
 
 	/** Creates the user through the service and logs in through GraphQL to obtain a session. */

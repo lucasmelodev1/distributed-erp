@@ -1,0 +1,6 @@
+app:
+  email:
+    retry:
+      # Same shape as production (4 attempts, exponential, same topic names), just fast.
+      delay: 20
+      multiplier: 2

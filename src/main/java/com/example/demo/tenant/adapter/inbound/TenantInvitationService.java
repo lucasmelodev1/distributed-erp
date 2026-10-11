@@ -20,8 +20,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.example.demo.email.EmailService;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantInvitationRepository;
@@ -102,7 +100,7 @@ public class TenantInvitationService implements TenantInvitationPort {
 
 		var code = UUID.randomUUID().toString();
 		var invitation = invitationRepository.save(tenant.inviteUser(normalizedEmail, tenantRoleIds, code, ttl));
-		sendAfterCommit(tenant.getName(), normalizedEmail, code);
+		sendInvitation(tenant.getName(), normalizedEmail, code);
 
 		log.info("Invited email={} to tenant={}", normalizedEmail, tenantId);
 		return invitation;
@@ -224,32 +222,19 @@ public class TenantInvitationService implements TenantInvitationPort {
 		}
 	}
 
-	/** Emails must not go out for an invitation that ends up rolled back. */
-	private void sendAfterCommit(String tenantName, String email, String code) {
-		Runnable send = () -> {
-			var name = tenantName.replaceAll("[\\r\\n]+", " ");
-			var link = "%s/accept-invitation?code=%s".formatted(frontendUrl, code);
-			try {
-				emailService.sendSimpleMessage(invitationFrom, email,
-						"%s invited you to join them!".formatted(name),
-						"%s invited you to join them! Visit the link below to accept it: \n%s".formatted(name, link));
-			} catch (Exception e) {
-				log.warn("Error sending invitation email to email={}: {}", email, e.getMessage(), e);
-			}
-			if (envUtils.isDevEnvironment()) {
-				System.out.println("Tenant invitation link: " + link);
-			}
-		};
-
-		if (TransactionSynchronizationManager.isSynchronizationActive()) {
-			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-				@Override
-				public void afterCommit() {
-					send.run();
-				}
-			});
-		} else {
-			send.run();
+	/** The email service publishes only after the transaction commits, so a rolled-back invitation sends nothing. */
+	private void sendInvitation(String tenantName, String email, String code) {
+		var name = tenantName.replaceAll("[\\r\\n]+", " ");
+		var link = "%s/accept-invitation?code=%s".formatted(frontendUrl, code);
+		try {
+			emailService.sendSimpleMessage(invitationFrom, email,
+					"%s invited you to join them!".formatted(name),
+					"%s invited you to join them! Visit the link below to accept it: \n%s".formatted(name, link));
+		} catch (Exception e) {
+			log.warn("Error sending invitation email to email={}: {}", email, e.getMessage(), e);
+		}
+		if (envUtils.isDevEnvironment()) {
+			System.out.println("Tenant invitation link: " + link);
 		}
 	}
 }

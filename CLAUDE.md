@@ -11,7 +11,7 @@ Maven Wrapper, JDK 25.
 ./mvnw verify                            # full Maven verification
 ```
 
-Tests import `TestcontainersConfiguration` (MySQL 8.0, Kafka, Redis, Grafana), so Docker must be running. The optional local stack is `docker compose up`, which reads `.env`. Never commit `.env` or credentials.
+Tests import `TestcontainersConfiguration` (MySQL 8.0, Kafka 4.0, Redis, Grafana), so Docker must be running. The containers are shared by every Spring context and marked reusable: add `testcontainers.reuse.enable=true` to `~/.testcontainers.properties` to keep them between runs (MySQL and Redis are wiped at the start of each run). The optional local stack is `docker compose up`, which reads `.env`. Never commit `.env` or credentials.
 
 ## Architecture
 
@@ -34,7 +34,7 @@ Rules:
 Non-obvious shared packages:
 - `entity/`: only `@MappedSuperclass` bases (`BaseEntity`, `NoIdBaseEntity`), no concrete entities.
 - `telemetry/`: OpenTelemetry and request filters, imported explicitly by `DemoApplication`.
-- `utils/`: `HashUtils`, `TokenService`, UUIDv7 generator. `email/`: `EmailService`.
+- `utils/`: `HashUtils`, `TokenService`, UUIDv7 generator. `email/`: the Kafka email flow (see Messaging).
 
 ## GraphQL (Netflix DGS)
 
@@ -71,6 +71,14 @@ Access control (in `config/graphql/`, enforced for every top-level Query/Mutatio
 - Everything the invitee does is keyed by the code: `checkInvitedUser(code)` (public, side-effect free), `acceptTenantInvitation` (needs a session for the invited email, otherwise `FORBIDDEN`) and `registerUserFromInvitation` (public; creates the account for the invited email, joins, logs in). Unknown, expired, revoked and already-used codes are all `NOT_FOUND`, so a code reveals nothing.
 - Admins (`tenants:invite`) use `tenantInvitations`, `inviteUserToTenant` and `revokeInvitation` (by id). Inviting an address again revokes its pending invitation. Status (`PENDING`, `ACCEPTED`, `REVOKED`, `EXPIRED`) is derived on `TenantInvitation`; the lifetime is `app.invitations.ttl`.
 - Joining grants only the invited roles that still exist. A member who was removed (soft-deleted) is restored through `TenantUserRepository.restoreRemoved` because the soft-delete filter hides the row from JPA; an active or inactive member cannot accept (an inactive one is told to ask for reactivation).
+
+## Messaging (Kafka)
+
+- All distributed messaging goes through Kafka (Apache Kafka 4.0 in KRaft mode, matching AWS MSK), in every environment including tests. The local broker is the `kafka` service in `docker-compose.yml`.
+- Email: `EmailService` (the only port) is implemented by `KafkaEmailService`, which publishes a JSON `EmailMessage` to `email.send`, keyed by recipient. Inside a transaction it publishes only after commit, so callers need no after-commit logic of their own. `EmailConsumer` sends it through the `EmailSender` interface (`SmtpEmailSender`; `RecordingEmailSender` in the `test` profile, which writes to `SentEmails`).
+- Retries: `@RetryableTopic` (non-blocking). A transient failure moves the message through `email.send-retry-0..N` with exponential backoff (`app.email.retry.*`); when the attempts run out, or immediately for a `PermanentEmailFailure` (bad address, unreadable payload), it lands in `email.send-dlt`. `SmtpEmailSender` decides which failures are permanent. Dead letters are not replayed automatically.
+- Topics are declared in `EmailTopics` with 1-day retention (`app.email.topics.*`); the email text holds codes and links, so never log it.
+- Delivery is at-least-once: a rare duplicate email is possible.
 
 ## Domain modeling
 
@@ -110,8 +118,9 @@ Access control (in `config/graphql/`, enforced for every top-level Query/Mutatio
 ## Testing
 
 - `BaseGraphQlTest`: the base for every integration test. It runs the app on a random port with the `test` profile and the Testcontainers services, and logs users in through GraphQL. Use `graphql(...)`, `graphqlAs(...)`, `graphqlIn(tenantId, user, ...)` and `assertGraphQlError(response, "FORBIDDEN")`; pass inputs as variables. Failures are HTTP 200 with `errors`, so assert on `$.errors[0].extensions.classification`.
-- The `test` profile swaps in `EmailServiceTestImpl` and `TokenServiceTestImpl`, so generated numeric codes are all zeroes.
-- `BaseGraphQlTest` clears `auth_tokens` and the captured emails before each test, because all test tokens are identical. Do not rely on state left over from another test.
+- The `test` profile swaps in `RecordingEmailSender` (the last hop of the real Kafka flow) and `TokenServiceTestImpl`, so generated numeric codes are all zeroes.
+- Emails are delivered asynchronously. `sentEmails.lastTextTo(...)`/`awaitTo(...)` wait for them; `awaitEmailsProcessed()` waits until the consumer is idle (use it before asserting that no email was sent). `RecordingEmailSender.failNext(...)` injects send failures (see `EmailKafkaTest`).
+- `BaseGraphQlTest` waits for in-flight emails, then clears `auth_tokens` and the captured emails before each test, because all test tokens are identical. Do not rely on state left over from another test.
 - The test profile records every email in `SentEmails`. Read what a user would receive with `sentEmails.lastTextTo(address)` (the six-character token, or the invitation link) instead of calling `tokenService.generate()`.
 - `BaseGraphQlTest` has `newTenant`, `newRole`, `graphqlIn(tenantId, user, ...)` and `variables(...)` for the common setup.
 - Create users through repositories/services. Use the tenant creation endpoint when the test is meant to exercise tenant initialization and role/permission setup.
