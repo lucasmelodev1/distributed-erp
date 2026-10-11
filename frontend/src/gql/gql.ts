@@ -23,6 +23,11 @@ type Documents = {
     "\n  mutation RegisterUser($input: RegisterUserInput!) {\n    registerUser(input: $input) {\n      id\n    }\n  }\n": typeof types.RegisterUserDocument,
     "\n  query Me {\n    me {\n      id\n      name\n      email\n      profileIconUrl\n    }\n  }\n": typeof types.MeDocument,
     "\n  mutation Logout {\n    logout {\n      success\n    }\n  }\n": typeof types.LogoutDocument,
+    "\n  mutation InactivateTenant {\n    inactivateTenant {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": typeof types.InactivateTenantDocument,
+    "\n  mutation ReactivateTenant {\n    reactivateTenant {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": typeof types.ReactivateTenantDocument,
+    "\n  mutation CreateTenant($input: CreateTenantInput!) {\n    createTenant(input: $input) {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": typeof types.CreateTenantDocument,
+    "\n  mutation UpdateTenant($input: UpdateTenantInput!) {\n    updateTenant(input: $input) {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": typeof types.UpdateTenantDocument,
+    "\n  query MyTenants {\n    myTenants {\n      id\n      name\n      active\n      inactivatedAt\n    }\n  }\n": typeof types.MyTenantsDocument,
 };
 const documents: Documents = {
     "\n  mutation RequestPasswordReset($input: RequestPasswordResetInput!) {\n    requestPasswordReset(input: $input) {\n      authTokenId\n    }\n  }\n": types.RequestPasswordResetDocument,
@@ -34,6 +39,11 @@ const documents: Documents = {
     "\n  mutation RegisterUser($input: RegisterUserInput!) {\n    registerUser(input: $input) {\n      id\n    }\n  }\n": types.RegisterUserDocument,
     "\n  query Me {\n    me {\n      id\n      name\n      email\n      profileIconUrl\n    }\n  }\n": types.MeDocument,
     "\n  mutation Logout {\n    logout {\n      success\n    }\n  }\n": types.LogoutDocument,
+    "\n  mutation InactivateTenant {\n    inactivateTenant {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": types.InactivateTenantDocument,
+    "\n  mutation ReactivateTenant {\n    reactivateTenant {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": types.ReactivateTenantDocument,
+    "\n  mutation CreateTenant($input: CreateTenantInput!) {\n    createTenant(input: $input) {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": types.CreateTenantDocument,
+    "\n  mutation UpdateTenant($input: UpdateTenantInput!) {\n    updateTenant(input: $input) {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": types.UpdateTenantDocument,
+    "\n  query MyTenants {\n    myTenants {\n      id\n      name\n      active\n      inactivatedAt\n    }\n  }\n": types.MyTenantsDocument,
 };
 
 /**
@@ -86,6 +96,26 @@ export function graphql(source: "\n  query Me {\n    me {\n      id\n      name\
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation Logout {\n    logout {\n      success\n    }\n  }\n"): (typeof documents)["\n  mutation Logout {\n    logout {\n      success\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation InactivateTenant {\n    inactivateTenant {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation InactivateTenant {\n    inactivateTenant {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ReactivateTenant {\n    reactivateTenant {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation ReactivateTenant {\n    reactivateTenant {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateTenant($input: CreateTenantInput!) {\n    createTenant(input: $input) {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation CreateTenant($input: CreateTenantInput!) {\n    createTenant(input: $input) {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateTenant($input: UpdateTenantInput!) {\n    updateTenant(input: $input) {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateTenant($input: UpdateTenantInput!) {\n    updateTenant(input: $input) {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query MyTenants {\n    myTenants {\n      id\n      name\n      active\n      inactivatedAt\n    }\n  }\n"): (typeof documents)["\n  query MyTenants {\n    myTenants {\n      id\n      name\n      active\n      inactivatedAt\n    }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

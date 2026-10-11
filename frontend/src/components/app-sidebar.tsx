@@ -1,4 +1,4 @@
-import { LayoutDashboardIcon } from "lucide-react"
+import { BuildingIcon, LayoutDashboardIcon } from "lucide-react"
 import { NavLink } from "react-router"
 
 import { NavUser } from "@/components/nav-user"
@@ -39,6 +39,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   >
                     <LayoutDashboardIcon />
                     <span>Dashboard</span>
+                  </SidebarMenuButton>
+                )}
+              </NavLink>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NavLink to="/companies">
+                {({ isActive }) => (
+                  <SidebarMenuButton
+                    isActive={isActive}
+                    tooltip="Companies"
+                    render={<span />}
+                  >
+                    <BuildingIcon />
+                    <span>Companies</span>
                   </SidebarMenuButton>
                 )}
               </NavLink>

@@ -14,9 +14,10 @@ FROM node:24-alpine AS frontend-build
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
-# src/gql is committed, so the build does not need the backend schema files.
 COPY frontend/ ./
-RUN npm run build
+# codegen reads ../src/main/resources/schema from /app, so the generated types always match the backend.
+COPY src/main/resources/schema/ /src/main/resources/schema/
+RUN npm run codegen && npm run build
 
 FROM eclipse-temurin:25-jre AS backend
 WORKDIR /app

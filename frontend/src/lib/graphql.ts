@@ -1,6 +1,7 @@
 import { cacheExchange, Client, fetchExchange, mapExchange } from "urql"
 
 import { errorCode } from "@/lib/errors"
+import { getTenantId, tenantFetchOptions } from "@/lib/tenant"
 
 type UnauthorizedListener = () => void
 const listeners = new Set<UnauthorizedListener>()
@@ -30,6 +31,7 @@ export function createClient() {
       }),
       fetchExchange,
     ],
-    fetchOptions: { credentials: "include" },
+    // A function, so the header follows the selected company without rebuilding the client.
+    fetchOptions: () => tenantFetchOptions(getTenantId()),
   })
 }

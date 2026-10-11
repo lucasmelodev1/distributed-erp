@@ -4,6 +4,8 @@ import { PublicOnly, RequireAuth } from "@/features/auth/guards"
 import { ForgotPasswordPage } from "@/features/auth/forgot-password-page"
 import { LoginPage } from "@/features/auth/login-page"
 import { RegisterPage } from "@/features/auth/register-page"
+import { CompaniesPage } from "@/features/tenants/companies-page"
+import { CompanyFormPage } from "@/features/tenants/company-form-page"
 import { DashboardLayout } from "@/routes/dashboard-layout"
 import { DashboardPage } from "@/routes/dashboard-page"
 import { NotFoundPage } from "@/routes/not-found-page"
@@ -20,6 +22,9 @@ export function App() {
         <Route element={<RequireAuth />}>
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/companies" element={<CompaniesPage />} />
+            <Route path="/companies/new" element={<CompanyFormPage />} />
+            <Route path="/companies/:id/edit" element={<CompanyFormPage />} />
           </Route>
         </Route>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

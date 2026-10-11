@@ -1,5 +1,6 @@
 import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react"
 
+import { CompanySwitcher } from "@/components/company-switcher"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -73,6 +74,7 @@ export function NavUser({ user }: { user: SessionUser }) {
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
+            <CompanySwitcher />
             <DropdownMenuItem onClick={() => void logout()}>
               <LogOutIcon />
               Log out
