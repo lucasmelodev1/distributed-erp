@@ -90,6 +90,8 @@ services:
         required: false
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      # Base of the links in emails (invitations): the frontend service below.
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-8081}}
       # Inside the compose network the services are not on localhost.
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-demo}?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
       SPRING_DATASOURCE_USERNAME: root

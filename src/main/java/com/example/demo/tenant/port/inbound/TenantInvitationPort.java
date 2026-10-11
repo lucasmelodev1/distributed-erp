@@ -33,12 +33,15 @@ public interface TenantInvitationPort {
 	}
 
 	/** Issues an invitation and emails the code once the transaction commits. */
-	TenantInvitation inviteUserToTenant(String email, Collection<UUID> tenantRoleIds, UUID tenantId);
+	TenantInvitation inviteUserToTenant(String email, Collection<UUID> tenantRoleIds, UUID inviterId, UUID tenantId);
 
 	TenantInvitation revokeInvitation(UUID invitationId, UUID tenantId);
 
+	/** Emails a fresh link for a pending or expired invitation; the previous link stops working. */
+	TenantInvitation resendInvitation(UUID invitationId, UUID tenantId);
+
 	/** Forward keyset page ordered by id (creation time). */
-	Window<TenantInvitation> scrollInvitations(TenantInvitation.@Nullable Status status, int limit,
+	Window<TenantInvitation> scrollInvitations(TenantInvitation.@Nullable Status status, @Nullable String query, int limit,
 			@Nullable UUID after, UUID tenantId);
 
 	Map<UUID, List<TenantRole>> findRolesByInvitationIds(Collection<UUID> invitationIds, UUID tenantId);

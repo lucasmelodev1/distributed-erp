@@ -4,6 +4,8 @@ import org.hibernate.annotations.SoftDelete;
 import org.hibernate.annotations.SoftDeleteType;
 import com.example.demo.entity.NoIdBaseEntity;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -16,9 +18,13 @@ public class Permission extends NoIdBaseEntity {
 
 	private String description;
 
-	public Permission(String code, String description) {
+	@Enumerated(EnumType.STRING)
+	private PermissionLevel level;
+
+	public Permission(String code, String description, PermissionLevel level) {
 		this.code = code;
 		this.description = description;
+		this.level = level;
 	}
 
 	public Permission() {
@@ -26,6 +32,10 @@ public class Permission extends NoIdBaseEntity {
 
 	public String getCode() {
 		return code;
+	}
+
+	public PermissionLevel getLevel() {
+		return level;
 	}
 
 	public String getDescription() {

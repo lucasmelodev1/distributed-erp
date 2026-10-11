@@ -58,7 +58,7 @@ public class TenantInvitationService implements TenantInvitationPort {
 	@Value("${TENANT_INVITATION_FROM:invitations@example.com}")
 	private String invitationFrom;
 
-	@Value("${FRONTEND_URL:http://localhost:3000}")
+	@Value("${FRONTEND_URL:http://localhost:5173}")
 	private String frontendUrl;
 
 	@Value("${app.invitations.ttl:3d}")
@@ -84,7 +84,8 @@ public class TenantInvitationService implements TenantInvitationPort {
 	}
 
 	@Transactional
-	public TenantInvitation inviteUserToTenant(String email, Collection<UUID> tenantRoleIds, UUID tenantId) {
+	public TenantInvitation inviteUserToTenant(String email, Collection<UUID> tenantRoleIds, UUID inviterId,
+			UUID tenantId) {
 		var normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
 
 		if (!tenantUserRepository.findByUserEmailAndTenantId(normalizedEmail, tenantId).isEmpty()) {
@@ -92,7 +93,8 @@ public class TenantInvitationService implements TenantInvitationPort {
 			throw new IllegalArgumentException(
 					"User is already a member. If their membership is inactive, reactivate it instead.");
 		}
-		roleChecks.requireRolesOfTenant(tenantRoleIds, tenantId);
+		roleChecks.requireActiveRolesOfTenant(tenantRoleIds, tenantId);
+		roleChecks.requireGrantable(tenantRoleIds, inviterId, tenantId);
 		var tenant = tenantRepository.findById(tenantId)
 				.orElseThrow(() -> new EntityNotFoundException("Tenant not found"));
 
@@ -107,6 +109,22 @@ public class TenantInvitationService implements TenantInvitationPort {
 	}
 
 	@Transactional
+	public TenantInvitation resendInvitation(UUID invitationId, UUID tenantId) {
+		var invitation = invitationRepository.findByIdAndTenantId(invitationId, tenantId)
+				.orElseThrow(() -> new EntityNotFoundException("Invitation not found"));
+		var tenant = tenantRepository.findById(tenantId)
+				.orElseThrow(() -> new EntityNotFoundException("Tenant not found"));
+
+		var code = UUID.randomUUID().toString();
+		invitation.reissue(code, ttl);
+		invitationRepository.save(invitation);
+		sendInvitation(tenant.getName(), invitation.getEmail(), code);
+
+		log.info("Resent invitation={} to tenant={}", invitationId, tenantId);
+		return invitation;
+	}
+
+	@Transactional
 	public TenantInvitation revokeInvitation(UUID invitationId, UUID tenantId) {
 		var invitation = invitationRepository.findByIdAndTenantId(invitationId, tenantId)
 				.orElseThrow(() -> new EntityNotFoundException("Invitation not found"));
@@ -115,11 +133,13 @@ public class TenantInvitationService implements TenantInvitationPort {
 	}
 
 	@Transactional(readOnly = true)
-	public Window<TenantInvitation> scrollInvitations(TenantInvitation.@Nullable Status status, int limit,
+	public Window<TenantInvitation> scrollInvitations(TenantInvitation.@Nullable Status status, @Nullable String query,
+			int limit,
 			@Nullable UUID after, UUID tenantId) {
 		var spec = Specification.allOf(
 				TenantInvitationSpecification.hasTenantId(tenantId),
-				TenantInvitationSpecification.hasStatus(status, Instant.now()));
+				TenantInvitationSpecification.hasStatus(status, Instant.now()),
+				TenantInvitationSpecification.hasEmailContaining(query));
 		ScrollPosition position = after == null ? ScrollPosition.keyset()
 				: ScrollPosition.forward(Map.of("id", after));
 		return invitationRepository.findBy(spec, q -> q.sortBy(Sort.by("id")).limit(limit).scroll(position));

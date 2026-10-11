@@ -41,7 +41,7 @@ public class TenantService implements TenantManagementPort {
 	private final TenantRolePermissionRepository tenantRolePermissionRepository;
 	private final PermissionRepository permissionRepository;
 
-	@Value("${FRONTEND_URL:http://localhost:3000}")
+	@Value("${FRONTEND_URL:http://localhost:5173}")
 	private String frontendUrl;
 
 	TenantService(
@@ -88,7 +88,7 @@ public class TenantService implements TenantManagementPort {
 		}
 
 		// Create admin role for this tenant
-		var adminRole = new TenantRole(tenant.getId(), "Admin", Set.of());
+		var adminRole = TenantRole.builtIn(tenant.getId(), "Admin", Set.of());
 		try {
 			tenantRoleRepository.save(adminRole);
 		} catch (Exception e) {

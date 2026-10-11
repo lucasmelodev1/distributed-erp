@@ -116,8 +116,11 @@ public class TenantUserService implements TenantUserManagementPort {
     }
 
     @Transactional
-    public void updateTenantUser(UpdateTenantUserInput dto, UUID tenantId) {
+    public void updateTenantUser(UUID actorId, UpdateTenantUserInput dto, UUID tenantId) {
         var userId = dto.userId();
+        if (actorId.equals(userId)) {
+            throw new IllegalArgumentException("You cannot change your own roles");
+        }
         var tenantUserQueryResult = tenantUserRepository.findById(new TenantUserId(tenantId, userId));
         if (tenantUserQueryResult.isEmpty()) {
             log.info("Tenant user not found for tenant={} and user={}", tenantId, userId);
@@ -126,6 +129,12 @@ public class TenantUserService implements TenantUserManagementPort {
 
         var tenantUser = tenantUserQueryResult.get();
         roleChecks.requireRolesOfTenant(dto.tenantRoleIds(), tenantId);
+        // Only roles the member does not hold yet are checked: keeping an inactive role is fine, adding one is not.
+        var held = tenantUser.getRoles() == null ? java.util.Set.<UUID>of()
+                : tenantUser.getRoles().stream().map(role -> role.getId().tenantRoleId()).collect(Collectors.toSet());
+        var added = dto.tenantRoleIds().stream().filter(id -> !held.contains(id)).distinct().toList();
+        roleChecks.requireActiveRolesOfTenant(added, tenantId);
+        roleChecks.requireGrantable(added, actorId, tenantId);
         tenantUser.replaceRoles(dto.tenantRoleIds());
 
         try {

@@ -105,6 +105,8 @@ class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 	}
 
 	private String codeSentTo(String email) {
+		// An earlier email to the same address may already be recorded; wait for the newest one.
+		awaitEmailsProcessed();
 		var matcher = CODE.matcher(sentEmails.lastTextTo(email));
 		assertThat(matcher.find()).as("invitation link in the email").isTrue();
 		return matcher.group(1);
@@ -455,5 +457,151 @@ class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 		} finally {
 			statistics.setStatisticsEnabled(false);
 		}
+	}
+
+	// ---- search and invite by roles
+
+	private static final String SEARCH = """
+			query($query: String) {
+				tenantInvitations(first: 100, query: $query) { edges { node { email } } }
+			}""";
+	private static final String PERMISSIONS = "query { permissions { code description } }";
+	private static final String DEACTIVATE_ROLE = """
+			mutation($input: TenantRoleIdInput!) { inactivateTenantRole(input: $input) { tenantRole { id active } } }""";
+
+	private List<String> searchEmails(String query) {
+		var emails = new ArrayList<String>();
+		graphqlIn(tenant, admin, SEARCH, variables("query", query))
+				.expectBody()
+				.jsonPath("$.errors").doesNotExist()
+				.jsonPath("$.data.tenantInvitations.edges[*].node.email")
+				.value(v -> ((List<?>) v).forEach(e -> emails.add(e.toString())));
+		return emails;
+	}
+
+	@Test
+	void invitations_canBeSearchedByEmail() {
+		issue("gql.inv.search.alice@mail.com", memberRole);
+		issue("gql.inv.search.bob@mail.com", memberRole);
+
+		assertThat(searchEmails("ALICE")).containsExactly("gql.inv.search.alice@mail.com");
+		assertThat(searchEmails("gql.inv.search")).containsExactlyInAnyOrder("gql.inv.search.alice@mail.com",
+				"gql.inv.search.bob@mail.com");
+		assertThat(searchEmails("%")).isEmpty();
+		assertThat(searchEmails("nobody-matches")).isEmpty();
+	}
+
+	@Test
+	void invite_needsAtLeastOneRole() {
+		var none = variables("input", variables("email", "gql.inv.norole@mail.com", "tenantRoleIds", List.of()));
+		assertGraphQlError(graphqlIn(tenant, admin, INVITE, none), "BAD_REQUEST");
+	}
+
+	@Test
+	void invite_withAnInactiveRole_isRejected() {
+		var retired = newRole(tenant, admin, "Retired", List.of("tenant_roles:read"));
+		graphqlIn(tenant, admin, DEACTIVATE_ROLE, variables("input", variables("id", retired)))
+				.expectBody().jsonPath("$.errors").doesNotExist();
+
+		assertGraphQlError(graphqlIn(tenant, admin, INVITE, inviteVars("gql.inv.retired@mail.com", retired)),
+				"BAD_REQUEST");
+		assertGraphQlError(graphqlIn(tenant, admin, INVITE, inviteVars("gql.inv.retired@mail.com", memberRole, retired)),
+				"BAD_REQUEST");
+	}
+
+	@Test
+	void invite_cannotGrantARoleWithPermissionsTheCallerLacks() {
+		var inviter = createUser("Limited Inviter", "gql.inv.limitedinviter@mail.com");
+		var inviterRole = newRole(tenant, admin, "Inviter only", List.of("tenants:invite"));
+		addMember(tenant, inviter, inviterRole);
+		var powerful = newRole(tenant, admin, "Powerful", List.of("tenants:invite", "tenants:expel"));
+
+		graphqlIn(tenant, inviter, INVITE, inviteVars("gql.inv.grant.ok@mail.com", inviterRole))
+				.expectBody().jsonPath("$.errors").doesNotExist();
+		assertGraphQlError(graphqlIn(tenant, inviter, INVITE, inviteVars("gql.inv.grant.no@mail.com", powerful)),
+				"FORBIDDEN");
+	}
+
+	@Test
+	void permissions_listsEveryPermissionForRoleReaders() {
+		graphqlIn(tenant, admin, PERMISSIONS, variables())
+				.expectBody()
+				.jsonPath("$.errors").doesNotExist()
+				.jsonPath("$.data.permissions[?(@.code == 'tenants:invite')].description").exists();
+
+		var nobody = createUser("Perm Nobody", "gql.inv.permnobody@mail.com");
+		var emptyRole = newRole(tenant, admin, "Empty", List.of());
+		addMember(tenant, nobody, emptyRole);
+		assertGraphQlError(graphqlIn(tenant, nobody, PERMISSIONS, variables()), "FORBIDDEN");
+		assertGraphQlError(graphql(PERMISSIONS, variables()), "UNAUTHORIZED");
+	}
+
+	// ---- resending
+
+	private static final String RESEND = """
+			mutation($input: ResendInvitationInput!) {
+				resendInvitation(input: $input) { invitation { id status expiresAt } }
+			}""";
+
+	private java.util.Map<String, Object> idInput(UUID id) {
+		return variables("input", variables("invitationId", id));
+	}
+
+	@Test
+	void resend_emailsAFreshLinkForTheSameInvitation() {
+		var issued = issue("gql.inv.resend@mail.com", memberRole);
+
+		graphqlIn(tenant, admin, RESEND, idInput(issued.id()))
+				.expectBody()
+				.jsonPath("$.errors").doesNotExist()
+				.jsonPath("$.data.resendInvitation.invitation.id").isEqualTo(issued.id().toString())
+				.jsonPath("$.data.resendInvitation.invitation.status").isEqualTo("PENDING");
+
+		var newCode = codeSentTo("gql.inv.resend@mail.com");
+		assertThat(newCode).isNotEqualTo(issued.code());
+		assertGraphQlError(graphql(CHECK, codeVars(issued.code())), "NOT_FOUND");
+		graphql(CHECK, codeVars(newCode)).expectBody().jsonPath("$.errors").doesNotExist();
+	}
+
+	@Test
+	void resend_revivesAnExpiredInvitation() {
+		var issued = issue("gql.inv.resendexp@mail.com", memberRole);
+		expireNow(issued.id());
+
+		graphqlIn(tenant, admin, RESEND, idInput(issued.id()))
+				.expectBody()
+				.jsonPath("$.errors").doesNotExist()
+				.jsonPath("$.data.resendInvitation.invitation.status").isEqualTo("PENDING");
+
+		graphql(CHECK, codeVars(codeSentTo("gql.inv.resendexp@mail.com")))
+				.expectBody().jsonPath("$.errors").doesNotExist();
+	}
+
+	@Test
+	void resend_isRejectedForRevokedAcceptedUnknownAndForeignInvitations() {
+		var revoked = issue("gql.inv.resendrev@mail.com", memberRole);
+		graphqlIn(tenant, admin, REVOKE, variables("input", variables("invitationId", revoked.id())));
+		assertGraphQlError(graphqlIn(tenant, admin, RESEND, idInput(revoked.id())), "BAD_REQUEST");
+
+		var invitee = createUser("Resend Accepted", "gql.inv.resendacc@mail.com");
+		var accepted = issue("gql.inv.resendacc@mail.com", memberRole);
+		graphqlAs(ACCEPT, codeInput(accepted.code()), invitee).expectBody().jsonPath("$.errors").doesNotExist();
+		assertGraphQlError(graphqlIn(tenant, admin, RESEND, idInput(accepted.id())), "BAD_REQUEST");
+
+		assertGraphQlError(graphqlIn(tenant, admin, RESEND, idInput(UUID.randomUUID())), "NOT_FOUND");
+
+		var pending = issue("gql.inv.resendforeign@mail.com", memberRole);
+		var outsiderTenant = newTenant(outsider, "Resend Outsider Tenant");
+		assertGraphQlError(graphqlIn(outsiderTenant, outsider, RESEND, idInput(pending.id())), "NOT_FOUND");
+	}
+
+	@Test
+	void resend_requiresTheInvitePermission() {
+		var issued = issue("gql.inv.resendperm@mail.com", memberRole);
+		var member = createUser("Resend Member", "gql.inv.resendmember@mail.com");
+		addMember(tenant, member, memberRole);
+
+		assertGraphQlError(graphqlIn(tenant, member, RESEND, idInput(issued.id())), "FORBIDDEN");
+		assertGraphQlError(graphql(RESEND, idInput(issued.id())), "UNAUTHORIZED");
 	}
 }

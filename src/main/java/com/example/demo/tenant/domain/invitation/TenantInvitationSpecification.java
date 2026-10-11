@@ -14,6 +14,11 @@ public class TenantInvitationSpecification {
 		return (root, query, cb) -> cb.equal(root.get("tenantId"), tenantId);
 	}
 
+	public static Specification<TenantInvitation> hasEmailContaining(@Nullable String text) {
+		return (root, query, cb) -> text == null || text.isBlank() ? null
+				: cb.like(root.get("email"), "%" + text.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%", '\\');
+	}
+
 	/** Mirrors {@link TenantInvitation#getStatus()}: accepted wins over revoked, which wins over expired. */
 	public static Specification<TenantInvitation> hasStatus(@Nullable Status status, Instant now) {
 		return (root, query, cb) -> {

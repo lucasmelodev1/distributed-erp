@@ -116,6 +116,7 @@ public class TenantRoleService implements TenantRoleManagementPort {
             throw new EntityNotFoundException("Tenant role not found for id: " + dto.id());
         }
         var tenantRole = tenantRoleQueryResult.get();
+        tenantRole.requireChangeable();
 
         requireKnownPermissions(dto.permissionCodes());
         tenantRole.setName(dto.name());
@@ -135,6 +136,11 @@ public class TenantRoleService implements TenantRoleManagementPort {
                     e);
             throw e;
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<Permission> findAllPermissions() {
+        return permissionRepository.findAll(Sort.by("code"));
     }
 
     @Transactional

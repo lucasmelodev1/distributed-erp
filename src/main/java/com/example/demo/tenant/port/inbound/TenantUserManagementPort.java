@@ -23,5 +23,5 @@ public interface TenantUserManagementPort {
     void updateTenantUserActiveStatus(UUID actorId, UUID userId, boolean active, UUID tenantId);
     /** Removes the membership (soft delete) together with its role assignments. */
     void removeTenantUser(UUID actorId, UUID userId, UUID tenantId);
-    void updateTenantUser(UpdateTenantUserInput dto, UUID tenantId);
+    void updateTenantUser(UUID actorId, UpdateTenantUserInput dto, UUID tenantId);
 }

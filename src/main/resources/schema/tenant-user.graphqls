@@ -41,7 +41,7 @@ extend type Query {
 }
 
 extend type Mutation {
-	"""Replaces the roles of a member. Requires the tenant_users:update permission."""
+	"""Replaces the roles of a member. Roles added must be active and only hold permissions the caller has; you cannot change your own roles. Requires the tenant_users:update permission."""
 	updateTenantUser(input: UpdateTenantUserInput!): UpdateTenantUserPayload!
 
 	"""

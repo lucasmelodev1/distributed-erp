@@ -22,4 +22,6 @@ public interface TenantRoleManagementPort {
     TenantRole createTenantRole(CreateTenantRoleInput dto, UUID tenantId);
     TenantRole updateTenantRole(UpdateTenantRoleInput dto, UUID tenantId);
     TenantRole setTenantRoleActive(UUID id, boolean active, UUID tenantId);
+    /** Every permission that exists, ordered by code. */
+    List<Permission> findAllPermissions();
 }

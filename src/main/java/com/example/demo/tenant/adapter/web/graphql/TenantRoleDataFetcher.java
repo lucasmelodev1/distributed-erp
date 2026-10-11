@@ -46,6 +46,12 @@ public class TenantRoleDataFetcher {
 
 	@TenantAware(withPermissions = "tenant_roles:read")
 	@DgsQuery
+	public List<Permission> permissions() {
+		return tenantRoleService.findAllPermissions();
+	}
+
+	@TenantAware(withPermissions = "tenant_roles:read")
+	@DgsQuery
 	public TenantRole tenantRole(@InputArgument UUID id) {
 		return tenantRoleService.findTenantRoleById(id, TenantContext.getTenantId());
 	}

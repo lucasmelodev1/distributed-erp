@@ -4,8 +4,10 @@ type TenantRole {
 	name: String!
 	"""Ordered by permission code."""
 	permissions: [Permission!]!
-	"""An inactive role stays assigned to its holders but grants no permissions."""
+	"""An inactive role stays assigned to its holders but grants no permissions. It cannot be newly assigned."""
 	active: Boolean!
+	"""The default role of a tenant (Admin). It cannot be changed, renamed or inactivated."""
+	builtIn: Boolean!
 	inactivatedAt: DateTime
 	createdAt: DateTime
 	updatedAt: DateTime
@@ -15,6 +17,17 @@ type TenantRole {
 type Permission {
 	code: String!
 	description: String
+	"""How far-reaching the permission is; the UI groups and orders permissions by it."""
+	level: PermissionLevel!
+}
+
+enum PermissionLevel {
+	"""Reading data."""
+	VIEW
+	"""Creating or changing data."""
+	EDIT
+	"""Actions that are hard to undo or that remove access, such as expelling or inactivating."""
+	SENSITIVE
 }
 
 type TenantRoleConnection {
@@ -28,6 +41,11 @@ type TenantRoleEdge {
 }
 
 extend type Query {
+	"""
+	Every permission that can be granted, ordered by code. Requires the tenant_roles:read permission.
+	"""
+	permissions: [Permission!]!
+
 	"""
 	Roles of the tenant selected by X-Tenant-Id, oldest first. Requires the tenant_roles:read permission.
 	"""

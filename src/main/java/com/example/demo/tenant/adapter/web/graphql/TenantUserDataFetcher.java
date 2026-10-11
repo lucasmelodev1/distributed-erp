@@ -70,9 +70,11 @@ public class TenantUserDataFetcher {
 
 	@TenantAware(withPermissions = "tenant_users:update")
 	@DgsMutation
-	public Map<String, Object> updateTenantUser(@InputArgument UpdateTenantUserInput input) {
+	public Map<String, Object> updateTenantUser(@InputArgument UpdateTenantUserInput input,
+			DgsDataFetchingEnvironment dfe) {
 		var tenantId = TenantContext.getTenantId();
-		tenantUserService.updateTenantUser(validator.validate(input), tenantId);
+		tenantUserService.updateTenantUser(GraphQlRequestContext.currentUser(dfe).getId(), validator.validate(input),
+				tenantId);
 		return Map.of("tenantUser", requireTenantUser(input.userId(), tenantId));
 	}
 

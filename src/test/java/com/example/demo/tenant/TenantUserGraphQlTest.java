@@ -349,4 +349,48 @@ class TenantUserGraphQlTest extends BaseGraphQlTest {
 			statistics.setStatisticsEnabled(false);
 		}
 	}
+
+	@Test
+	void updateTenantUser_cannotAddAnInactiveRole_butMayKeepOne() {
+		var retired = createRole(tenant, admin, "Retired Role", List.of("tenant_users:read"));
+		in(tenant, admin, UPDATE, vars("input", vars("userId", ivan.user().getId(), "tenantRoleIds", List.of(retired))))
+				.expectBody().jsonPath("$.errors").doesNotExist();
+		in(tenant, admin, "mutation($input: TenantRoleIdInput!) { inactivateTenantRole(input: $input) { tenantRole { id } } }",
+				vars("input", vars("id", retired))).expectBody().jsonPath("$.errors").doesNotExist();
+
+		// Keeping the inactive role they already hold is allowed; adding it to another member is not.
+		in(tenant, admin, UPDATE,
+				vars("input", vars("userId", ivan.user().getId(), "tenantRoleIds", List.of(retired, viewerRole))))
+				.expectBody().jsonPath("$.errors").doesNotExist();
+		assertGraphQlError(in(tenant, admin, UPDATE,
+				vars("input", vars("userId", viewer.user().getId(), "tenantRoleIds", List.of(retired)))), "BAD_REQUEST");
+	}
+
+	@Test
+	void updateTenantUser_cannotChangeOwnRoles_orGrantMorePermissionsThanHeld() {
+		assertGraphQlError(in(tenant, admin, UPDATE,
+				vars("input", vars("userId", admin.user().getId(), "tenantRoleIds", List.of(viewerRole)))), "BAD_REQUEST");
+
+		// Own tenant, so the extra members do not show up in the other tests' member lists.
+		var manager = createUser("Role Manager", "gql.members.manager@mail.com");
+		var target = createUser("Role Target", "gql.members.target@mail.com");
+		var own = createTenant(manager, "Role Manager Tenant");
+		var managerRole = createRole(own, manager, "Role manager", List.of("tenant_users:update", "tenant_roles:read"));
+		var strong = createRole(own, manager, "Strong", List.of("tenant_users:update", "tenant_roles:read", "tenants:expel"));
+		var weak = createRole(own, manager, "Weak", List.of("tenant_roles:read"));
+		var limitedManager = createUser("Limited Manager", "gql.members.limited@mail.com");
+		tenantUserRepository.save(new TenantUser(new TenantUserId(own, target.user().getId())));
+		tenantUserRepository.save(new TenantUser(new TenantUserId(own, limitedManager.user().getId())));
+		tenantUserRoleRepository.save(new TenantUserRole(
+				new TenantUserRoleId(limitedManager.user().getId(), own, managerRole)));
+
+		// The creator's Admin role holds everything, so they may hand out any role.
+		in(own, manager, UPDATE, vars("input", vars("userId", target.user().getId(), "tenantRoleIds", List.of(strong))))
+				.expectBody().jsonPath("$.errors").doesNotExist();
+		// A member who holds only tenant_users:update + tenant_roles:read cannot hand out a role with tenants:expel.
+		in(own, limitedManager, UPDATE, vars("input", vars("userId", target.user().getId(), "tenantRoleIds", List.of(weak))))
+				.expectBody().jsonPath("$.errors").doesNotExist();
+		assertGraphQlError(in(own, limitedManager, UPDATE,
+				vars("input", vars("userId", target.user().getId(), "tenantRoleIds", List.of(strong)))), "FORBIDDEN");
+	}
 }

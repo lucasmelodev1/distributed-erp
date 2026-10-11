@@ -14,6 +14,7 @@ import com.example.demo.config.graphql.PublicOperation;
 import com.example.demo.tenant.adapter.web.dto.user.AcceptTenantInvitationInput;
 import com.example.demo.tenant.adapter.web.dto.user.InviteUserToTenantInput;
 import com.example.demo.tenant.adapter.web.dto.user.RegisterUserFromInvitationInput;
+import com.example.demo.tenant.adapter.web.dto.user.ResendInvitationInput;
 import com.example.demo.tenant.adapter.web.dto.user.RevokeInvitationInput;
 import com.example.demo.tenant.config.TenantAware;
 import com.example.demo.tenant.config.TenantContext;
@@ -47,8 +48,9 @@ public class TenantInvitationDataFetcher {
 	@TenantAware(withPermissions = "tenants:invite")
 	@DgsQuery
 	public Connection<TenantInvitation> tenantInvitations(@InputArgument Integer first,
-			@InputArgument String after, @InputArgument TenantInvitation.Status status) {
-		var window = invitationService.scrollInvitations(status, Cursors.pageSize(first), Cursors.decode(after),
+			@InputArgument String after, @InputArgument TenantInvitation.Status status,
+			@InputArgument String query) {
+		var window = invitationService.scrollInvitations(status, query, Cursors.pageSize(first), Cursors.decode(after),
 				TenantContext.getTenantId());
 		return Cursors.toConnection(window, TenantInvitation::getId, after);
 	}
@@ -69,9 +71,11 @@ public class TenantInvitationDataFetcher {
 
 	@TenantAware(withPermissions = "tenants:invite")
 	@DgsMutation
-	public Map<String, Object> inviteUserToTenant(@InputArgument InviteUserToTenantInput input) {
+	public Map<String, Object> inviteUserToTenant(@InputArgument InviteUserToTenantInput input,
+			DgsDataFetchingEnvironment dfe) {
 		validator.validate(input);
-		return Map.of("invitation", invitationService.inviteUserToTenant(input.email(), input.tenantRoleIds(),
+		return Map.of("invitation", invitationService.inviteUserToTenant(input.email(),
+				input.tenantRoleIds(), GraphQlRequestContext.currentUser(dfe).getId(),
 				TenantContext.getTenantId()));
 	}
 
@@ -81,6 +85,14 @@ public class TenantInvitationDataFetcher {
 		validator.validate(input);
 		return Map.of("invitation",
 				invitationService.revokeInvitation(input.invitationId(), TenantContext.getTenantId()));
+	}
+
+	@TenantAware(withPermissions = "tenants:invite")
+	@DgsMutation
+	public Map<String, Object> resendInvitation(@InputArgument ResendInvitationInput input) {
+		validator.validate(input);
+		return Map.of("invitation",
+				invitationService.resendInvitation(input.invitationId(), TenantContext.getTenantId()));
 	}
 
 	@DgsMutation

@@ -55,6 +55,8 @@ extend type Query {
 		after: String
 		"""Only invitations in this status."""
 		status: TenantInvitationStatus
+		"""Only invitations whose email contains this text, ignoring case."""
+		query: String
 	): TenantInvitationConnection!
 
 	"""
@@ -73,6 +75,11 @@ extend type Mutation {
 	revokeInvitation(input: RevokeInvitationInput!): RevokeInvitationPayload!
 
 	"""
+	Emails a fresh link for a pending or expired invitation, keeping the same invitation (id and roles). The code is never stored in plain text, so this issues a new one with a new lifetime and the previous link stops working. Accepted and revoked invitations cannot be resent. Requires the tenants:invite permission.
+	"""
+	resendInvitation(input: ResendInvitationInput!): ResendInvitationPayload!
+
+	"""
 	Joins the tenant the code was issued for. Requires a session for the invited email address.
 	"""
 	acceptTenantInvitation(input: AcceptTenantInvitationInput!): AcceptTenantInvitationPayload!
@@ -85,7 +92,9 @@ extend type Mutation {
 
 input InviteUserToTenantInput {
 	email: String!
-	"""Must all be roles of this tenant."""
+	"""
+	One or more active roles of this tenant. The caller must hold every permission of these roles.
+	"""
 	tenantRoleIds: [UUID!]!
 }
 
@@ -98,6 +107,14 @@ input RevokeInvitationInput {
 }
 
 type RevokeInvitationPayload {
+	invitation: TenantInvitation!
+}
+
+input ResendInvitationInput {
+	invitationId: UUID!
+}
+
+type ResendInvitationPayload {
 	invitation: TenantInvitation!
 }
 

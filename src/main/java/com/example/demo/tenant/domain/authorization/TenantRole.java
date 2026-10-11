@@ -26,6 +26,9 @@ public class TenantRole extends BaseEntity {
 
 	private Instant inactivatedAt;
 
+	/** The default role of a tenant (Admin): it can never be changed through the API. */
+	private boolean builtIn;
+
 	@OneToMany(mappedBy = "role", orphanRemoval = true, cascade = jakarta.persistence.CascadeType.ALL, fetch = FetchType.LAZY)
 	@JsonIgnore
 	private Set<TenantRolePermission> permissions;
@@ -41,6 +44,24 @@ public class TenantRole extends BaseEntity {
 	}
 
 	public TenantRole() {
+	}
+
+	/** The default Admin role of a tenant. */
+	public static TenantRole builtIn(UUID tenantId, String name, Set<TenantRolePermission> permissions) {
+		var role = new TenantRole(tenantId, name, permissions);
+		role.builtIn = true;
+		return role;
+	}
+
+	public boolean isBuiltIn() {
+		return builtIn;
+	}
+
+	/** Fails for the built-in role; every change to a role's name, permissions or status goes through this rule. */
+	public void requireChangeable() {
+		if (builtIn) {
+			throw new IllegalArgumentException("The default role cannot be changed");
+		}
 	}
 
 	public UUID getTenantId() {
@@ -61,16 +82,19 @@ public class TenantRole extends BaseEntity {
 
 	/** An inactive role stays assigned to its holders but grants no permissions. */
 	public void inactivate() {
+		requireChangeable();
 		if (isActive()) {
 			this.inactivatedAt = Instant.now();
 		}
 	}
 
 	public void reactivate() {
+		requireChangeable();
 		this.inactivatedAt = null;
 	}
 
 	public void setName(String name) {
+		requireChangeable();
 		this.name = name;
 	}
 }

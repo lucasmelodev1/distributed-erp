@@ -68,7 +68,7 @@ public class TenantInvitation {
 	@OneToMany(mappedBy = "invitation", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
 	private Set<TenantInvitationRole> roles = new HashSet<>();
 
-	@Column(name = "code_hash", nullable = false, updatable = false)
+	@Column(name = "code_hash", nullable = false)
 	private String codeHash;
 
 	protected TenantInvitation() {
@@ -113,6 +113,22 @@ public class TenantInvitation {
 		if (!isRevoked()) {
 			revokedAt = Instant.now();
 		}
+	}
+
+	/**
+	 * Resending: the plain code is never stored, so the same email cannot be repeated.
+	 * The invitation (id, roles) stays, gets a fresh code and a new lifetime, and the
+	 * previous link stops working. Accepted and revoked invitations cannot be resent.
+	 */
+	public void reissue(String newCode, Duration ttl) {
+		if (isConsumed()) {
+			throw new IllegalArgumentException("The invitation was already accepted");
+		}
+		if (isRevoked()) {
+			throw new IllegalArgumentException("The invitation was revoked. Send a new one instead.");
+		}
+		codeHash = HashUtils.hash(newCode);
+		expiresAt = Instant.now().plus(ttl);
 	}
 
 	public void consume() {
