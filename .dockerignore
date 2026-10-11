@@ -1,0 +1,11 @@
+.git
+.idea
+.vscode
+.classpath
+.project
+.settings
+target
+.env
+HELP.md
+frontend/node_modules
+frontend/dist

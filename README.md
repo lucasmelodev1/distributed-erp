@@ -10,7 +10,7 @@ A Spring Boot 4 / JDK 25 starter for multi-tenant backends: a GraphQL API (Netfl
 - **Tenant management**: tenants, roles and permissions, members, and email invitations (accept an existing account or register straight from the invite). Tenants, roles and members are inactivated rather than deleted.
 - **Persistence**: MySQL 8.0 (Aurora MySQL v3 compatible), JPA, Flyway migrations, UUIDv7 IDs.
 - **Observability**: OpenTelemetry (logs, traces, metrics) with a span and metrics per GraphQL operation, and Actuator.
-- **Email**: SMTP. Kafka is on the classpath but not used yet.
+- **Email**: SMTP. `docker compose up` includes Mailpit; read sent emails at http://localhost:8025. Kafka is on the classpath but not used yet.
 - **Testing**: Testcontainers (MySQL, Kafka, Redis, Grafana).
 
 ## Getting started
