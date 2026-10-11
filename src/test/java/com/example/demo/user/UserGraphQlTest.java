@@ -40,11 +40,10 @@ class UserGraphQlTest extends BaseGraphQlTest {
 		graphqlAs(ME, Map.of(), bystander).expectBody().jsonPath("$.data.me.name").isEqualTo("Bystander");
 	}
 
+	/** The constraints themselves are covered by InputValidationTest; this proves the fetcher applies them. */
 	@Test
-	void updateMe_rejectsInvalidNames() {
+	void updateMe_withAnInvalidName_isBadRequest() {
 		assertGraphQlError(graphqlAs(UPDATE, input(""), bystander), "BAD_REQUEST");
-		assertGraphQlError(graphqlAs(UPDATE, input("   "), bystander), "BAD_REQUEST");
-		assertGraphQlError(graphqlAs(UPDATE, input("x".repeat(User.NAME_MAX_SIZE + 1)), bystander), "BAD_REQUEST");
 		graphqlAs(ME, Map.of(), bystander).expectBody().jsonPath("$.data.me.name").isEqualTo("Bystander");
 	}
 

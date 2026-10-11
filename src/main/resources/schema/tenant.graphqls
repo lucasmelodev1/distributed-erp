@@ -5,6 +5,10 @@ type Tenant {
 	"""An inactive tenant rejects every operation except reactivateTenant."""
 	active: Boolean!
 	inactivatedAt: DateTime
+	"""
+	The caller's effective permission codes in this tenant (the union of their active roles), read from the session cache. Empty when the caller's membership is inactive.
+	"""
+	permissions: [String!]!
 	createdAt: DateTime
 	updatedAt: DateTime
 }

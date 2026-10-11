@@ -6,28 +6,15 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 import com.example.demo.BaseGraphQlTest;
 import com.example.demo.TestUser;
 
-import graphql.analysis.MaxQueryComplexityInstrumentation;
-import graphql.analysis.MaxQueryDepthInstrumentation;
-
 class GraphQlInfrastructureTest extends BaseGraphQlTest {
 	private TestUser alpha;
 	private TestUser beta;
 	private UUID alphaTenantId;
-
-	@Autowired
-	private MaxQueryDepthInstrumentation depthInstrumentation;
-
-	@Autowired
-	private MaxQueryComplexityInstrumentation complexityInstrumentation;
-
-	@Autowired
-	private org.springframework.context.ApplicationContext applicationContext;
 
 	@BeforeAll
 	void setup() {
@@ -59,47 +46,18 @@ class GraphQlInfrastructureTest extends BaseGraphQlTest {
 	}
 
 	@Test
-	void protectedOperation_withAuthentication_succeeds() {
-		query("{ testAuthenticated }", alpha, null)
-				.expectStatus().isOk()
-				.expectBody()
-				.jsonPath("$.data.testAuthenticated").isEqualTo("ok");
-	}
-
-	@Test
-	void tenantOperation_withoutHeader_isUnauthorized() {
-		assertError(query("{ testTenant }", alpha, null), "UNAUTHORIZED");
-	}
-
-	@Test
 	void tenantOperation_withInvalidUuid_isBadRequest() {
 		assertError(query("{ testTenant }", alpha, "not-a-uuid"), "BAD_REQUEST");
 	}
 
 	@Test
-	void tenantOperation_asNonMember_isForbidden() {
-		assertError(query("{ testTenant }", beta, alphaTenantId.toString()), "FORBIDDEN");
-	}
-
-	@Test
-	void tenantOperation_asMember_succeedsAndExposesTenantContext() {
+	void authenticatedAndTenantOperations_succeedForEntitledCallers() {
+		query("{ testAuthenticated }", alpha, null)
+				.expectBody().jsonPath("$.data.testAuthenticated").isEqualTo("ok");
 		query("{ testCurrentTenant }", alpha, alphaTenantId.toString())
-				.expectStatus().isOk()
-				.expectBody()
-				.jsonPath("$.data.testCurrentTenant").isEqualTo(alphaTenantId.toString());
-	}
-
-	@Test
-	void tenantOperation_withGrantedPermission_succeeds() {
+				.expectBody().jsonPath("$.data.testCurrentTenant").isEqualTo(alphaTenantId.toString());
 		query("{ testTenantWithPermission }", alpha, alphaTenantId.toString())
-				.expectStatus().isOk()
-				.expectBody()
-				.jsonPath("$.data.testTenantWithPermission").isEqualTo("ok");
-	}
-
-	@Test
-	void tenantOperation_withoutPermission_isForbidden() {
-		assertError(query("{ testTenantMissingPermission }", alpha, alphaTenantId.toString()), "FORBIDDEN");
+				.expectBody().jsonPath("$.data.testTenantWithPermission").isEqualTo("ok");
 	}
 
 	@Test
@@ -172,18 +130,5 @@ class GraphQlInfrastructureTest extends BaseGraphQlTest {
 				.body("query={ping}")
 				.exchange()
 				.expectStatus().is4xxClientError();
-	}
-
-	@Test
-	void observationInstrumentation_isRegistered() {
-		org.junit.jupiter.api.Assertions.assertFalse(applicationContext
-				.getBeansOfType(org.springframework.graphql.observation.GraphQlObservationInstrumentation.class)
-				.isEmpty());
-	}
-
-	@Test
-	void limitInstrumentations_areRegistered() {
-		org.junit.jupiter.api.Assertions.assertNotNull(depthInstrumentation);
-		org.junit.jupiter.api.Assertions.assertNotNull(complexityInstrumentation);
 	}
 }

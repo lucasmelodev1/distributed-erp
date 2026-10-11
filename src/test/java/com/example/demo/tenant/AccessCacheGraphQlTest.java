@@ -12,11 +12,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.example.demo.BaseGraphQlTest;
 import com.example.demo.TestUser;
-import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRoleRepository;
-import com.example.demo.tenant.domain.TenantUser;
-import com.example.demo.tenant.domain.TenantUserId;
-import com.example.demo.tenant.domain.authorization.TenantUserRole;
 import com.example.demo.tenant.domain.authorization.TenantUserRoleId;
 
 import jakarta.persistence.EntityManagerFactory;
@@ -26,6 +22,10 @@ class AccessCacheGraphQlTest extends BaseGraphQlTest {
 	private static final String PERMISSIONS = "query { permissions { code } }";
 	private static final String INACTIVATE_ROLE = """
 			mutation($input: TenantRoleIdInput!) { inactivateTenantRole(input: $input) { tenantRole { id } } }""";
+	private static final String REACTIVATE_ROLE = """
+			mutation($input: TenantRoleIdInput!) { reactivateTenantRole(input: $input) { tenantRole { id } } }""";
+	private static final String REACTIVATE_USER = """
+			mutation($input: TenantUserIdInput!) { reactivateTenantUser(input: $input) { tenantUser { user { id } } } }""";
 	private static final String UPDATE_ROLE = """
 			mutation($input: UpdateTenantRoleInput!) { updateTenantRole(input: $input) { tenantRole { id } } }""";
 	private static final String INACTIVATE_USER = """
@@ -34,8 +34,6 @@ class AccessCacheGraphQlTest extends BaseGraphQlTest {
 			mutation($input: TenantUserIdInput!) { removeTenantUser(input: $input) { removedUserId } }""";
 	private static final String INACTIVATE_TENANT = "mutation { inactivateTenant { tenant { id } } }";
 
-	@Autowired
-	private TenantUserRepository tenantUserRepository;
 	@Autowired
 	private TenantUserRoleRepository tenantUserRoleRepository;
 	@Autowired
@@ -52,8 +50,7 @@ class AccessCacheGraphQlTest extends BaseGraphQlTest {
 		var member = createUser("Cache Member " + suffix, "cache.member." + suffix + "@mail.com");
 		var tenant = newTenant(owner, "Cache Tenant " + suffix);
 		var role = newRole(tenant, owner, "Reader " + suffix, List.of("tenant_roles:read"));
-		tenantUserRepository.save(new TenantUser(new TenantUserId(tenant, member.user().getId())));
-		tenantUserRoleRepository.save(new TenantUserRole(new TenantUserRoleId(member.user().getId(), tenant, role)));
+		addMember(tenant, member, role);
 		return new Holder(tenant, role, owner, member);
 	}
 
@@ -90,6 +87,10 @@ class AccessCacheGraphQlTest extends BaseGraphQlTest {
 				.expectBody().jsonPath("$.errors").doesNotExist();
 
 		assertGraphQlError(graphqlIn(h.tenantId(), h.member(), PERMISSIONS, variables()), "FORBIDDEN");
+
+		graphqlIn(h.tenantId(), h.owner(), REACTIVATE_ROLE, variables("input", variables("id", h.roleId())))
+				.expectBody().jsonPath("$.errors").doesNotExist();
+		assertAllowed(h, h.member());
 	}
 
 	@Test
@@ -113,7 +114,14 @@ class AccessCacheGraphQlTest extends BaseGraphQlTest {
 				variables("input", variables("userId", h.member().user().getId())))
 				.expectBody().jsonPath("$.errors").doesNotExist();
 
-		assertGraphQlError(graphqlIn(h.tenantId(), h.member(), PERMISSIONS, variables()), "FORBIDDEN");
+		var denied = graphqlIn(h.tenantId(), h.member(), PERMISSIONS, variables());
+		assertGraphQlError(denied, "FORBIDDEN");
+		denied.expectBody().jsonPath("$.errors[0].message").isEqualTo("Your membership in this tenant is inactive");
+
+		graphqlIn(h.tenantId(), h.owner(), REACTIVATE_USER,
+				variables("input", variables("userId", h.member().user().getId())))
+				.expectBody().jsonPath("$.errors").doesNotExist();
+		assertAllowed(h, h.member());
 	}
 
 	@Test

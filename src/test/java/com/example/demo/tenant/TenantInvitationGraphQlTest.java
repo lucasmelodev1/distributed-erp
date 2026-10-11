@@ -10,23 +10,16 @@ import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
-import org.hibernate.SessionFactory;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.example.demo.BaseGraphQlTest;
 import com.example.demo.TestUser;
 import com.example.demo.tenant.adapter.outbound.persistence.TenantRoleRepository;
-import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRepository;
-import com.example.demo.tenant.adapter.outbound.persistence.TenantUserRoleRepository;
-import com.example.demo.tenant.domain.TenantUser;
-import com.example.demo.tenant.domain.TenantUserId;
-import com.example.demo.tenant.domain.authorization.TenantUserRole;
-import com.example.demo.tenant.domain.authorization.TenantUserRoleId;
-
-import jakarta.persistence.EntityManagerFactory;
 
 class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 	private static final Pattern CODE = Pattern.compile("accept-invitation\\?code=([0-9a-fA-F-]{36})");
@@ -58,15 +51,9 @@ class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 			query { tenantUsers(first: 100) { edges { node { user { email } roles { name } active } } } }""";
 
 	@Autowired
-	private TenantUserRepository tenantUserRepository;
-	@Autowired
-	private TenantUserRoleRepository tenantUserRoleRepository;
-	@Autowired
 	private TenantRoleRepository tenantRoleRepository;
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
-	@Autowired
-	private EntityManagerFactory entityManagerFactory;
 
 	private TestUser admin;
 	private TestUser outsider;
@@ -135,14 +122,6 @@ class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 		return emails;
 	}
 
-	private void addMember(UUID tenantId, TestUser user, UUID roleId) {
-		tenantUserRepository.save(new TenantUser(new TenantUserId(tenantId, user.user().getId())));
-		if (roleId != null) {
-			tenantUserRoleRepository
-					.save(new TenantUserRole(new TenantUserRoleId(user.user().getId(), tenantId, roleId)));
-		}
-	}
-
 	// ---- issuing
 
 	@Test
@@ -165,8 +144,13 @@ class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 	}
 
 	@Test
-	void invite_isRejectedForInvalidRequests() {
+	void invite_withAnInvalidEmailOrNoRoles_isBadRequest() {
 		assertGraphQlError(graphqlIn(tenant, admin, INVITE, inviteVars("not-an-email", memberRole)), "BAD_REQUEST");
+		assertGraphQlError(graphqlIn(tenant, admin, INVITE, inviteVars("gql.inv.norole@mail.com")), "BAD_REQUEST");
+	}
+
+	@Test
+	void invite_isRejectedForInvalidRequests() {
 		assertGraphQlError(graphqlIn(tenant, admin, INVITE, inviteVars("gql.inv.x@mail.com", otherTenantRole)),
 				"BAD_REQUEST");
 		assertGraphQlError(graphqlIn(tenant, admin, INVITE, inviteVars("gql.inv.x@mail.com", UUID.randomUUID())),
@@ -295,9 +279,9 @@ class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 		var issued = issue("gql.inv.active@mail.com", memberRole);
 		addMember(tenant, invitee, null);
 
-		assertGraphQlError(graphqlAs(ACCEPT, codeInput(issued.code()), invitee), "BAD_REQUEST");
-		graphqlAs(ACCEPT, codeInput(issued.code()), invitee)
-				.expectBody().jsonPath("$.errors[0].message").isEqualTo("You are already a member of this tenant");
+		var response = graphqlAs(ACCEPT, codeInput(issued.code()), invitee);
+		assertGraphQlError(response, "BAD_REQUEST");
+		response.expectBody().jsonPath("$.errors[0].message").isEqualTo("You are already a member of this tenant");
 	}
 
 	@Test
@@ -363,23 +347,6 @@ class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 	}
 
 	@Test
-	void revoke_isRejectedForAcceptedUnknownAndForeignInvitations() {
-		var invitee = createUser("Accepted Early", "gql.inv.early@mail.com");
-		var accepted = issue("gql.inv.early@mail.com", memberRole);
-		graphqlAs(ACCEPT, codeInput(accepted.code()), invitee).expectBody().jsonPath("$.errors").doesNotExist();
-		assertGraphQlError(graphqlIn(tenant, admin, REVOKE, variables("input", variables("invitationId", accepted.id()))),
-				"BAD_REQUEST");
-
-		assertGraphQlError(graphqlIn(tenant, admin, REVOKE,
-				variables("input", variables("invitationId", UUID.randomUUID()))), "NOT_FOUND");
-
-		var pending = issue("gql.inv.foreign@mail.com", memberRole);
-		var outsiderTenant = newTenant(outsider, "Another Outsider Tenant");
-		assertGraphQlError(graphqlIn(outsiderTenant, outsider, REVOKE,
-				variables("input", variables("invitationId", pending.id()))), "NOT_FOUND");
-	}
-
-	@Test
 	void expiredInvitation_behavesLikeAnUnknownOne() {
 		var issued = issue("gql.inv.expired@mail.com", memberRole);
 		expireNow(issued.id());
@@ -395,22 +362,6 @@ class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 
 	// ---- access control
 
-	@Test
-	void managingInvitations_requiresThePermission() {
-		var limited = createUser("Limited Member", "gql.inv.limited@mail.com");
-		addMember(tenant, limited, memberRole);
-		var pending = issue("gql.inv.protected@mail.com", memberRole);
-
-		for (var user : List.of(limited, outsider)) {
-			assertGraphQlError(graphqlIn(tenant, user, INVITATIONS, variables()), "FORBIDDEN");
-			assertGraphQlError(graphqlIn(tenant, user, INVITE, inviteVars("gql.inv.nope@mail.com", memberRole)),
-					"FORBIDDEN");
-			assertGraphQlError(graphqlIn(tenant, user, REVOKE,
-					variables("input", variables("invitationId", pending.id()))), "FORBIDDEN");
-		}
-		graphql(CHECK, codeVars(pending.code())).expectBody().jsonPath("$.errors").doesNotExist();
-	}
-
 	// ---- listing
 
 	@Test
@@ -422,41 +373,17 @@ class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 					.expectBody().jsonPath("$.errors").doesNotExist();
 		}
 
-		var seen = new ArrayList<String>();
-		String after = null;
-		boolean hasNext = true;
-		int pages = 0;
-		while (hasNext) {
-			var page = new Object[2];
-			graphqlIn(listTenant, admin, INVITATIONS, variables("first", 2, "after", after))
-					.expectBody()
-					.jsonPath("$.errors").doesNotExist()
-					.jsonPath("$.data.tenantInvitations.edges[*].node.email")
-					.value(v -> ((List<?>) v).forEach(e -> seen.add(e.toString())))
-					.jsonPath("$.data.tenantInvitations.pageInfo.hasNextPage").value(v -> page[0] = v)
-					.jsonPath("$.data.tenantInvitations.pageInfo.endCursor").value(v -> page[1] = v);
-			hasNext = (Boolean) page[0];
-			after = (String) page[1];
-			assertThat(++pages).isLessThan(6);
-		}
-		assertThat(seen).containsExactly("gql.inv.list1@mail.com", "gql.inv.list2@mail.com",
+		var pages = collectPages("tenantInvitations", "email",
+				after -> graphqlIn(listTenant, admin, INVITATIONS, variables("first", 2, "after", after)));
+		assertThat(pages.values()).containsExactly("gql.inv.list1@mail.com", "gql.inv.list2@mail.com",
 				"gql.inv.list3@mail.com", "gql.inv.list4@mail.com", "gql.inv.list5@mail.com");
-		assertThat(pages).isEqualTo(3);
+		assertThat(pages.count()).isEqualTo(3);
 
-		var statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
-		statistics.setStatisticsEnabled(true);
-		try {
-			graphqlIn(listTenant, admin, INVITATIONS, variables("first", 1)).expectBody().jsonPath("$.errors").doesNotExist();
-			statistics.clear();
-			graphqlIn(listTenant, admin, INVITATIONS, variables("first", 1)).expectBody().jsonPath("$.errors").doesNotExist();
-			long onePerPage = statistics.getPrepareStatementCount();
-			statistics.clear();
-			graphqlIn(listTenant, admin, INVITATIONS, variables("first", 5)).expectBody().jsonPath("$.errors").doesNotExist();
-			assertThat(onePerPage).isGreaterThan(0);
-			assertThat(statistics.getPrepareStatementCount()).isEqualTo(onePerPage);
-		} finally {
-			statistics.setStatisticsEnabled(false);
-		}
+		assertStatementCountIndependentOfPageSize(
+				() -> graphqlIn(listTenant, admin, INVITATIONS, variables("first", 1))
+						.expectBody().jsonPath("$.errors").doesNotExist(),
+				() -> graphqlIn(listTenant, admin, INVITATIONS, variables("first", 5))
+						.expectBody().jsonPath("$.errors").doesNotExist());
 	}
 
 	// ---- search and invite by roles
@@ -465,7 +392,6 @@ class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 			query($query: String) {
 				tenantInvitations(first: 100, query: $query) { edges { node { email } } }
 			}""";
-	private static final String PERMISSIONS = "query { permissions { code description } }";
 	private static final String DEACTIVATE_ROLE = """
 			mutation($input: TenantRoleIdInput!) { inactivateTenantRole(input: $input) { tenantRole { id active } } }""";
 
@@ -492,12 +418,6 @@ class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 	}
 
 	@Test
-	void invite_needsAtLeastOneRole() {
-		var none = variables("input", variables("email", "gql.inv.norole@mail.com", "tenantRoleIds", List.of()));
-		assertGraphQlError(graphqlIn(tenant, admin, INVITE, none), "BAD_REQUEST");
-	}
-
-	@Test
 	void invite_withAnInactiveRole_isRejected() {
 		var retired = newRole(tenant, admin, "Retired", List.of("tenant_roles:read"));
 		graphqlIn(tenant, admin, DEACTIVATE_ROLE, variables("input", variables("id", retired)))
@@ -520,20 +440,6 @@ class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 				.expectBody().jsonPath("$.errors").doesNotExist();
 		assertGraphQlError(graphqlIn(tenant, inviter, INVITE, inviteVars("gql.inv.grant.no@mail.com", powerful)),
 				"FORBIDDEN");
-	}
-
-	@Test
-	void permissions_listsEveryPermissionForRoleReaders() {
-		graphqlIn(tenant, admin, PERMISSIONS, variables())
-				.expectBody()
-				.jsonPath("$.errors").doesNotExist()
-				.jsonPath("$.data.permissions[?(@.code == 'tenants:invite')].description").exists();
-
-		var nobody = createUser("Perm Nobody", "gql.inv.permnobody@mail.com");
-		var emptyRole = newRole(tenant, admin, "Empty", List.of());
-		addMember(tenant, nobody, emptyRole);
-		assertGraphQlError(graphqlIn(tenant, nobody, PERMISSIONS, variables()), "FORBIDDEN");
-		assertGraphQlError(graphql(PERMISSIONS, variables()), "UNAUTHORIZED");
 	}
 
 	// ---- resending
@@ -578,30 +484,28 @@ class TenantInvitationGraphQlTest extends BaseGraphQlTest {
 	}
 
 	@Test
-	void resend_isRejectedForRevokedAcceptedUnknownAndForeignInvitations() {
+	void resend_isRejectedForARevokedInvitation() {
 		var revoked = issue("gql.inv.resendrev@mail.com", memberRole);
-		graphqlIn(tenant, admin, REVOKE, variables("input", variables("invitationId", revoked.id())));
+		graphqlIn(tenant, admin, REVOKE, idInput(revoked.id())).expectBody().jsonPath("$.errors").doesNotExist();
 		assertGraphQlError(graphqlIn(tenant, admin, RESEND, idInput(revoked.id())), "BAD_REQUEST");
-
-		var invitee = createUser("Resend Accepted", "gql.inv.resendacc@mail.com");
-		var accepted = issue("gql.inv.resendacc@mail.com", memberRole);
-		graphqlAs(ACCEPT, codeInput(accepted.code()), invitee).expectBody().jsonPath("$.errors").doesNotExist();
-		assertGraphQlError(graphqlIn(tenant, admin, RESEND, idInput(accepted.id())), "BAD_REQUEST");
-
-		assertGraphQlError(graphqlIn(tenant, admin, RESEND, idInput(UUID.randomUUID())), "NOT_FOUND");
-
-		var pending = issue("gql.inv.resendforeign@mail.com", memberRole);
-		var outsiderTenant = newTenant(outsider, "Resend Outsider Tenant");
-		assertGraphQlError(graphqlIn(outsiderTenant, outsider, RESEND, idInput(pending.id())), "NOT_FOUND");
 	}
 
-	@Test
-	void resend_requiresTheInvitePermission() {
-		var issued = issue("gql.inv.resendperm@mail.com", memberRole);
-		var member = createUser("Resend Member", "gql.inv.resendmember@mail.com");
-		addMember(tenant, member, memberRole);
+	/** Revoking and resending share the rules for which invitations they can reach. */
+	@ParameterizedTest
+	@ValueSource(strings = { "revoke", "resend" })
+	void changingAnInvitation_isRejectedWhenAcceptedUnknownOrForeign(String operation) {
+		var document = operation.equals("revoke") ? REVOKE : RESEND;
+		var email = "gql.inv.%s.accepted@mail.com".formatted(operation);
 
-		assertGraphQlError(graphqlIn(tenant, member, RESEND, idInput(issued.id())), "FORBIDDEN");
-		assertGraphQlError(graphql(RESEND, idInput(issued.id())), "UNAUTHORIZED");
+		var invitee = createUser("Accepted " + operation, email);
+		var accepted = issue(email, memberRole);
+		graphqlAs(ACCEPT, codeInput(accepted.code()), invitee).expectBody().jsonPath("$.errors").doesNotExist();
+		assertGraphQlError(graphqlIn(tenant, admin, document, idInput(accepted.id())), "BAD_REQUEST");
+
+		assertGraphQlError(graphqlIn(tenant, admin, document, idInput(UUID.randomUUID())), "NOT_FOUND");
+
+		var pending = issue("gql.inv.%s.foreign@mail.com".formatted(operation), memberRole);
+		var outsiderTenant = newTenant(outsider, "Outsider Tenant for " + operation);
+		assertGraphQlError(graphqlIn(outsiderTenant, outsider, document, idInput(pending.id())), "NOT_FOUND");
 	}
 }

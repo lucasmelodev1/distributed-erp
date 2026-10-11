@@ -2,6 +2,7 @@ package com.example.demo.tenant.adapter.web.graphql;
 
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -9,11 +10,13 @@ import com.example.demo.config.graphql.GraphQlInputValidator;
 import com.example.demo.config.graphql.GraphQlRequestContext;
 import com.example.demo.tenant.adapter.web.dto.tenant.CreateTenantInput;
 import com.example.demo.tenant.adapter.web.dto.tenant.UpdateTenantInput;
+import com.example.demo.tenant.config.TenantAccessChecker;
 import com.example.demo.tenant.config.TenantAware;
 import com.example.demo.tenant.config.TenantContext;
 import com.example.demo.tenant.domain.Tenant;
 import com.example.demo.tenant.port.inbound.TenantManagementPort;
 import com.netflix.graphql.dgs.DgsComponent;
+import com.netflix.graphql.dgs.DgsData;
 import com.netflix.graphql.dgs.DgsDataFetchingEnvironment;
 import com.netflix.graphql.dgs.DgsMutation;
 import com.netflix.graphql.dgs.DgsQuery;
@@ -23,10 +26,26 @@ import com.netflix.graphql.dgs.InputArgument;
 public class TenantDataFetcher {
 	private final TenantManagementPort tenantService;
 	private final GraphQlInputValidator validator;
+	private final TenantAccessChecker accessChecker;
 
-	public TenantDataFetcher(TenantManagementPort tenantService, GraphQlInputValidator validator) {
+	public TenantDataFetcher(TenantManagementPort tenantService, GraphQlInputValidator validator,
+			TenantAccessChecker accessChecker) {
 		this.tenantService = tenantService;
 		this.validator = validator;
+		this.accessChecker = accessChecker;
+	}
+
+	/** The caller's permissions in the tenant, from the cached session snapshot (no query). */
+	@DgsData(parentType = "Tenant", field = "permissions")
+	public List<String> permissions(DgsDataFetchingEnvironment dfe) {
+		Tenant tenant = dfe.getSource();
+		var snapshot = accessChecker.snapshot(GraphQlRequestContext.httpRequest(dfe),
+				GraphQlRequestContext.currentUser(dfe).getId());
+		var access = snapshot.tenants().get(tenant.getId());
+		if (access == null || !access.memberActive()) {
+			return List.of();
+		}
+		return List.copyOf(new TreeSet<>(access.permissions()));
 	}
 
 	@DgsQuery
