@@ -11,7 +11,7 @@ function FullPageSpinner() {
   )
 }
 
-/** Authentication only; there is no authorization on the frontend yet. */
+/** Authentication only; permissions are checked by `features/access` (RequirePermission). */
 export function RequireAuth() {
   const { loading, user } = useSession()
   const location = useLocation()

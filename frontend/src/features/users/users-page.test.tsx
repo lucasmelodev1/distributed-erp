@@ -2,8 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import { PERMISSIONS } from "@/features/access/permissions"
 import { UsersPage } from "@/features/users/users-page"
 
+// The permissions the signed-in user holds in the selected company.
+const held = vi.hoisted(() => ({ permissions: [] as string[] }))
 const useQuery = vi.fn()
 const reload = vi.fn()
 const inactivate = vi.fn()
@@ -16,7 +19,12 @@ vi.mock("urql", async (importOriginal) => ({
   useMutation: vi.fn().mockImplementation(() => [{ fetching: false }, vi.fn()]),
 }))
 vi.mock("@/features/tenants/tenant-context", () => ({
-  useCompanies: () => ({ current: { id: "tenant-1" } }),
+  useCompanies: () => ({
+    current: { id: "tenant-1" },
+    companies: [
+      { id: "tenant-1", permissions: held.permissions, active: true },
+    ],
+  }),
 }))
 vi.mock("@/features/users/manage-user-drawer", () => ({
   ManageUserDrawer: ({ member }: { member: { name: string } }) => (
@@ -57,6 +65,7 @@ async function setupMutations() {
 describe("UsersPage", () => {
   beforeEach(async () => {
     vi.clearAllMocks()
+    held.permissions = Object.values(PERMISSIONS)
     await setupMutations()
     inactivate.mockResolvedValue({ data: {} })
     reactivate.mockResolvedValue({ data: {} })
@@ -153,5 +162,26 @@ describe("UsersPage", () => {
     )
 
     expect(screen.getByText("managing Alice")).toBeInTheDocument()
+  })
+
+  it("shows only the actions the user may do", async () => {
+    held.permissions = [PERMISSIONS.tenantUsersInactivate]
+    render(<UsersPage />)
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Actions for Alice" })
+    )
+
+    expect(
+      await screen.findByRole("menuitem", { name: "Inactivate" })
+    ).toBeInTheDocument()
+    expect(screen.queryByRole("menuitem", { name: "Manage" })).toBeNull()
+  })
+
+  it("hides the actions menu when the user may do none of them", () => {
+    held.permissions = [PERMISSIONS.tenantUsersRead]
+    render(<UsersPage />)
+
+    expect(screen.queryByRole("button", { name: /^Actions for/ })).toBeNull()
   })
 })

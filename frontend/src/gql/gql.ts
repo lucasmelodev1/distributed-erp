@@ -37,7 +37,7 @@ type Documents = {
     "\n  mutation ReactivateTenant {\n    reactivateTenant {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": typeof types.ReactivateTenantDocument,
     "\n  mutation CreateTenant($input: CreateTenantInput!) {\n    createTenant(input: $input) {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": typeof types.CreateTenantDocument,
     "\n  mutation UpdateTenant($input: UpdateTenantInput!) {\n    updateTenant(input: $input) {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": typeof types.UpdateTenantDocument,
-    "\n  query MyTenants {\n    myTenants {\n      id\n      name\n      active\n      inactivatedAt\n    }\n  }\n": typeof types.MyTenantsDocument,
+    "\n  query MyTenants {\n    myTenants {\n      id\n      name\n      active\n      inactivatedAt\n      permissions\n    }\n  }\n": typeof types.MyTenantsDocument,
     "\n  query TenantInvitations(\n    $first: Int\n    $after: String\n    $status: TenantInvitationStatus\n    $query: String\n  ) {\n    tenantInvitations(\n      first: $first\n      after: $after\n      status: $status\n      query: $query\n    ) {\n      edges {\n        node {\n          id\n          email\n          status\n          expiresAt\n          roles {\n            id\n            name\n          }\n        }\n      }\n      pageInfo {\n        hasNextPage\n        endCursor\n      }\n    }\n  }\n": typeof types.TenantInvitationsDocument,
     "\n  mutation ResendInvitation($input: ResendInvitationInput!) {\n    resendInvitation(input: $input) {\n      invitation {\n        id\n        status\n        expiresAt\n      }\n    }\n  }\n": typeof types.ResendInvitationDocument,
     "\n  mutation RevokeInvitation($input: RevokeInvitationInput!) {\n    revokeInvitation(input: $input) {\n      invitation {\n        id\n        status\n      }\n    }\n  }\n": typeof types.RevokeInvitationDocument,
@@ -71,7 +71,7 @@ const documents: Documents = {
     "\n  mutation ReactivateTenant {\n    reactivateTenant {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": types.ReactivateTenantDocument,
     "\n  mutation CreateTenant($input: CreateTenantInput!) {\n    createTenant(input: $input) {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": types.CreateTenantDocument,
     "\n  mutation UpdateTenant($input: UpdateTenantInput!) {\n    updateTenant(input: $input) {\n      tenant {\n        id\n        name\n        active\n        inactivatedAt\n      }\n    }\n  }\n": types.UpdateTenantDocument,
-    "\n  query MyTenants {\n    myTenants {\n      id\n      name\n      active\n      inactivatedAt\n    }\n  }\n": types.MyTenantsDocument,
+    "\n  query MyTenants {\n    myTenants {\n      id\n      name\n      active\n      inactivatedAt\n      permissions\n    }\n  }\n": types.MyTenantsDocument,
     "\n  query TenantInvitations(\n    $first: Int\n    $after: String\n    $status: TenantInvitationStatus\n    $query: String\n  ) {\n    tenantInvitations(\n      first: $first\n      after: $after\n      status: $status\n      query: $query\n    ) {\n      edges {\n        node {\n          id\n          email\n          status\n          expiresAt\n          roles {\n            id\n            name\n          }\n        }\n      }\n      pageInfo {\n        hasNextPage\n        endCursor\n      }\n    }\n  }\n": types.TenantInvitationsDocument,
     "\n  mutation ResendInvitation($input: ResendInvitationInput!) {\n    resendInvitation(input: $input) {\n      invitation {\n        id\n        status\n        expiresAt\n      }\n    }\n  }\n": types.ResendInvitationDocument,
     "\n  mutation RevokeInvitation($input: RevokeInvitationInput!) {\n    revokeInvitation(input: $input) {\n      invitation {\n        id\n        status\n      }\n    }\n  }\n": types.RevokeInvitationDocument,
@@ -191,7 +191,7 @@ export function graphql(source: "\n  mutation UpdateTenant($input: UpdateTenantI
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query MyTenants {\n    myTenants {\n      id\n      name\n      active\n      inactivatedAt\n    }\n  }\n"): (typeof documents)["\n  query MyTenants {\n    myTenants {\n      id\n      name\n      active\n      inactivatedAt\n    }\n  }\n"];
+export function graphql(source: "\n  query MyTenants {\n    myTenants {\n      id\n      name\n      active\n      inactivatedAt\n      permissions\n    }\n  }\n"): (typeof documents)["\n  query MyTenants {\n    myTenants {\n      id\n      name\n      active\n      inactivatedAt\n      permissions\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -1,6 +1,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router"
 
 import { AcceptInvitationPage } from "@/features/invitations/accept-invitation-page"
+import { USER_ROUTES } from "@/features/access/routes"
+import { RequirePermission } from "@/features/access/require-permission"
 import { PublicOnly, RequireAuth } from "@/features/auth/guards"
 import { ForgotPasswordPage } from "@/features/auth/forgot-password-page"
 import { LoginPage } from "@/features/auth/login-page"
@@ -13,6 +15,12 @@ import { UsersPage } from "@/features/users/users-page"
 import { DashboardLayout } from "@/routes/dashboard-layout"
 import { DashboardPage } from "@/routes/dashboard-page"
 import { NotFoundPage } from "@/routes/not-found-page"
+
+const USER_PAGES: Record<string, React.ReactNode> = {
+  "/users": <UsersPage />,
+  "/users/invitations": <InvitationsPage />,
+  "/users/roles": <RolesPage />,
+}
 
 export function App() {
   return (
@@ -29,9 +37,14 @@ export function App() {
             <Route path="/companies" element={<CompaniesPage />} />
             <Route path="/companies/new" element={<CompanyFormPage />} />
             <Route path="/companies/:id/edit" element={<CompanyFormPage />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/users/roles" element={<RolesPage />} />
-            <Route path="/users/invitations" element={<InvitationsPage />} />
+            {USER_ROUTES.map(({ path, permission }) => (
+              <Route
+                key={path}
+                element={<RequirePermission permission={permission} />}
+              >
+                <Route path={path} element={USER_PAGES[path]} />
+              </Route>
+            ))}
           </Route>
         </Route>
         {/* Open to signed-in and signed-out visitors, so outside the guards. */}

@@ -1,18 +1,13 @@
-import { MoreHorizontalIcon, PlusIcon, ShieldIcon } from "lucide-react"
+import { PlusIcon, ShieldIcon } from "lucide-react"
 import { useState } from "react"
 import { useMutation, useQuery } from "urql"
 
+import { ActionsMenu } from "@/components/actions-menu"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { ListToolbar } from "@/components/list-toolbar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyDescription,
@@ -30,6 +25,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { toast } from "@/components/ui/toast"
+import { Can } from "@/features/access/can"
+import { PERMISSIONS } from "@/features/access/permissions"
+import { useCan } from "@/features/access/use-can"
 import { FormError } from "@/features/auth/auth-layout"
 import { RoleDrawer } from "@/features/roles/role-drawer"
 import {
@@ -75,6 +73,9 @@ export function RolesPage() {
 }
 
 function Roles({ companyId }: { companyId?: string }) {
+  const can = useCan()
+  const canUpdate = can(PERMISSIONS.tenantRolesUpdate)
+  const canToggle = can(PERMISSIONS.tenantRolesInactivate)
   const list = useListControls()
   const [drawerOpen, setDrawerOpen] = useState(false)
   // The role being edited; none means the drawer creates one.
@@ -123,15 +124,17 @@ function Roles({ companyId }: { companyId?: string }) {
             get everything they allow together.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setEditing(undefined)
-            setDrawerOpen(true)
-          }}
-        >
-          <PlusIcon data-icon="inline-start" />
-          Create Role
-        </Button>
+        <Can permission={PERMISSIONS.tenantRolesCreate}>
+          <Button
+            onClick={() => {
+              setEditing(undefined)
+              setDrawerOpen(true)
+            }}
+          >
+            <PlusIcon data-icon="inline-start" />
+            Create Role
+          </Button>
+        </Can>
       </div>
 
       <ListToolbar
@@ -203,54 +206,45 @@ function Roles({ companyId }: { companyId?: string }) {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {!role.builtIn && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={<Button variant="ghost" size="icon-sm" />}
-                          aria-label={`Actions for ${role.name}`}
+                    <ActionsMenu
+                      label={`Actions for ${role.name}`}
+                      show={!role.builtIn && (canUpdate || canToggle)}
+                    >
+                      {canUpdate && (
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setEditing(role)
+                            setDrawerOpen(true)
+                          }}
                         >
-                          <MoreHorizontalIcon />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setEditing(role)
-                                setDrawerOpen(true)
-                              }}
-                            >
-                              Manage
-                            </DropdownMenuItem>
-                            {role.active ? (
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() =>
-                                  setToInactivate({
-                                    id: role.id,
-                                    name: role.name,
-                                  })
-                                }
-                              >
-                                Inactivate
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  changeStatus(
-                                    reactivate,
-                                    role.id,
-                                    "Role reactivated",
-                                    `${role.name} can be chosen again.`
-                                  )
-                                }
-                              >
-                                Reactivate
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+                          Manage
+                        </DropdownMenuItem>
+                      )}
+                      {canToggle && role.active && (
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() =>
+                            setToInactivate({ id: role.id, name: role.name })
+                          }
+                        >
+                          Inactivate
+                        </DropdownMenuItem>
+                      )}
+                      {canToggle && !role.active && (
+                        <DropdownMenuItem
+                          onClick={() =>
+                            changeStatus(
+                              reactivate,
+                              role.id,
+                              "Role reactivated",
+                              `${role.name} can be chosen again.`
+                            )
+                          }
+                        >
+                          Reactivate
+                        </DropdownMenuItem>
+                      )}
+                    </ActionsMenu>
                   </TableCell>
                 </TableRow>
               ))}

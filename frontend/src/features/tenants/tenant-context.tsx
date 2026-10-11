@@ -4,8 +4,10 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react"
+import { useLocation } from "react-router"
 import { useClient, useQuery } from "urql"
 
 import { graphql } from "@/gql"
@@ -19,6 +21,7 @@ export const MyTenantsQuery = graphql(`
       name
       active
       inactivatedAt
+      permissions
     }
   }
 `)
@@ -50,6 +53,15 @@ export function CompaniesProvider({ children }: { children: React.ReactNode }) {
   const client = useClient()
   const [{ data, fetching }, reexecute] = useQuery({ query: MyTenantsQuery })
   const [selectedId, setSelectedId] = useState(getTenantId)
+
+  // Permissions are re-read on every page entry (the server answers from the session cache).
+  const { pathname } = useLocation()
+  const lastPathname = useRef(pathname)
+  useEffect(() => {
+    if (lastPathname.current === pathname) return
+    lastPathname.current = pathname
+    reexecute({ requestPolicy: "network-only" })
+  }, [pathname, reexecute])
 
   const companies = useMemo(() => data?.myTenants ?? [], [data])
   const current = useMemo(

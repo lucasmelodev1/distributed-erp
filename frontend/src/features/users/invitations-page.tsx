@@ -1,19 +1,14 @@
-import { MailIcon, MoreHorizontalIcon, PlusIcon } from "lucide-react"
+import { MailIcon, PlusIcon } from "lucide-react"
 import { useState } from "react"
 import { useMutation, useQuery } from "urql"
 
+import { ActionsMenu } from "@/components/actions-menu"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { CursorPager } from "@/components/cursor-pager"
 import { ListToolbar } from "@/components/list-toolbar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyDescription,
@@ -33,6 +28,8 @@ import {
 import { toast } from "@/components/ui/toast"
 import { FormError } from "@/features/auth/auth-layout"
 import { useCompanies } from "@/features/tenants/tenant-context"
+import { Can } from "@/features/access/can"
+import { PERMISSIONS } from "@/features/access/permissions"
 import { InviteDrawer } from "@/features/users/invite-drawer"
 import { graphql } from "@/gql"
 import type { TenantInvitationStatus } from "@/gql/graphql"
@@ -166,10 +163,14 @@ function Invitations({ companyId }: { companyId?: string }) {
             People invited to join the selected company.
           </p>
         </div>
-        <Button onClick={() => setDrawerOpen(true)}>
-          <PlusIcon data-icon="inline-start" />
-          Send Invitation
-        </Button>
+        <Can
+          permission={[PERMISSIONS.tenantsInvite, PERMISSIONS.tenantRolesRead]}
+        >
+          <Button onClick={() => setDrawerOpen(true)}>
+            <PlusIcon data-icon="inline-start" />
+            Send Invitation
+          </Button>
+        </Can>
       </div>
 
       <ListToolbar
@@ -242,39 +243,28 @@ function Invitations({ companyId }: { companyId?: string }) {
                       : "Never"}
                   </TableCell>
                   <TableCell>
-                    {(node.status === "PENDING" ||
-                      node.status === "EXPIRED") && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={<Button variant="ghost" size="icon-sm" />}
-                          aria-label={`Actions for ${node.email}`}
+                    <ActionsMenu
+                      label={`Actions for ${node.email}`}
+                      show={
+                        node.status === "PENDING" || node.status === "EXPIRED"
+                      }
+                    >
+                      <DropdownMenuItem
+                        onClick={() => resendEmail(node.id, node.email)}
+                      >
+                        Resend email
+                      </DropdownMenuItem>
+                      {node.status === "PENDING" && (
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() =>
+                            setToRevoke({ id: node.id, email: node.email })
+                          }
                         >
-                          <MoreHorizontalIcon />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem
-                              onClick={() => resendEmail(node.id, node.email)}
-                            >
-                              Resend email
-                            </DropdownMenuItem>
-                            {node.status === "PENDING" && (
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() =>
-                                  setToRevoke({
-                                    id: node.id,
-                                    email: node.email,
-                                  })
-                                }
-                              >
-                                Revoke
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+                          Revoke
+                        </DropdownMenuItem>
+                      )}
+                    </ActionsMenu>
                   </TableCell>
                 </TableRow>
               ))}

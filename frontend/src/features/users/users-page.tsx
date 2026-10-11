@@ -1,19 +1,13 @@
-import { MoreHorizontalIcon, UsersIcon } from "lucide-react"
+import { UsersIcon } from "lucide-react"
 import { useState } from "react"
 import { useMutation, useQuery } from "urql"
 
+import { ActionsMenu } from "@/components/actions-menu"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { CursorPager } from "@/components/cursor-pager"
 import { ListToolbar } from "@/components/list-toolbar"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyDescription,
@@ -31,6 +25,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { toast } from "@/components/ui/toast"
+import { PERMISSIONS } from "@/features/access/permissions"
+import { useCan } from "@/features/access/use-can"
 import { FormError } from "@/features/auth/auth-layout"
 import {
   ManageUserDrawer,
@@ -106,6 +102,13 @@ export function UsersPage() {
 
 function Members({ companyId }: { companyId?: string }) {
   const { user: me } = useSession()
+  const can = useCan()
+  // Changing roles also needs to read them for the picker.
+  const canManage = can([
+    PERMISSIONS.tenantUsersUpdate,
+    PERMISSIONS.tenantRolesRead,
+  ])
+  const canToggle = can(PERMISSIONS.tenantUsersInactivate)
   const list = useListControls()
   const [managing, setManaging] = useState<ManagedMember | null>(null)
   const [manageOpen, setManageOpen] = useState(false)
@@ -224,59 +227,53 @@ function Members({ companyId }: { companyId?: string }) {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {member && !isMe && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            render={<Button variant="ghost" size="icon-sm" />}
-                            aria-label={`Actions for ${member.name}`}
+                      <ActionsMenu
+                        label={`Actions for ${member?.name}`}
+                        show={!!member && !isMe && (canManage || canToggle)}
+                      >
+                        {member && canManage && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setManaging({
+                                userId: member.id,
+                                name: member.name,
+                                email: member.email,
+                                roleIds: node.roles.map((role) => role.id),
+                              })
+                              setManageOpen(true)
+                            }}
                           >
-                            <MoreHorizontalIcon />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuGroup>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setManaging({
-                                    userId: member.id,
-                                    name: member.name,
-                                    email: member.email,
-                                    roleIds: node.roles.map((role) => role.id),
-                                  })
-                                  setManageOpen(true)
-                                }}
-                              >
-                                Manage
-                              </DropdownMenuItem>
-                              {node.active ? (
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  onClick={() =>
-                                    setToInactivate({
-                                      id: member.id,
-                                      name: member.name,
-                                    })
-                                  }
-                                >
-                                  Inactivate
-                                </DropdownMenuItem>
-                              ) : (
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    changeAccess(
-                                      reactivate,
-                                      member.id,
-                                      "Member reactivated",
-                                      `${member.name} can enter this company again.`
-                                    )
-                                  }
-                                >
-                                  Reactivate
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuGroup>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
+                            Manage
+                          </DropdownMenuItem>
+                        )}
+                        {member && canToggle && node.active && (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() =>
+                              setToInactivate({
+                                id: member.id,
+                                name: member.name,
+                              })
+                            }
+                          >
+                            Inactivate
+                          </DropdownMenuItem>
+                        )}
+                        {member && canToggle && !node.active && (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              changeAccess(
+                                reactivate,
+                                member.id,
+                                "Member reactivated",
+                                `${member.name} can enter this company again.`
+                              )
+                            }
+                          >
+                            Reactivate
+                          </DropdownMenuItem>
+                        )}
+                      </ActionsMenu>
                     </TableCell>
                   </TableRow>
                 )

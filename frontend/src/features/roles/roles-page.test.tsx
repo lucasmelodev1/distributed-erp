@@ -2,8 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import { PERMISSIONS } from "@/features/access/permissions"
 import { RolesPage } from "@/features/roles/roles-page"
 
+// The permissions the signed-in user holds in the selected company.
+const held = vi.hoisted(() => ({ permissions: [] as string[] }))
 const useQuery = vi.fn()
 const reload = vi.fn()
 const inactivate = vi.fn()
@@ -20,7 +23,12 @@ vi.mock("urql", async (importOriginal) => ({
   ],
 }))
 vi.mock("@/features/tenants/tenant-context", () => ({
-  useCompanies: () => ({ current: { id: "tenant-1" } }),
+  useCompanies: () => ({
+    current: { id: "tenant-1" },
+    companies: [
+      { id: "tenant-1", permissions: held.permissions, active: true },
+    ],
+  }),
 }))
 vi.mock("@/features/roles/role-drawer", () => ({
   RoleDrawer: ({ open, role }: { open: boolean; role?: { name: string } }) =>
@@ -44,6 +52,7 @@ function lastVariables() {
 describe("RolesPage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    held.permissions = Object.values(PERMISSIONS)
     inactivate.mockResolvedValue({ data: {} })
     reactivate.mockResolvedValue({ data: {} })
     useQuery.mockReturnValue([
@@ -144,5 +153,14 @@ describe("RolesPage", () => {
     expect(
       screen.queryByRole("button", { name: "Actions for Admin" })
     ).toBeNull()
+  })
+
+  it("hides create and the row actions without permission", () => {
+    held.permissions = [PERMISSIONS.tenantRolesRead]
+    render(<RolesPage />)
+
+    expect(screen.getByText("Recruiter")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Create Role" })).toBeNull()
+    expect(screen.queryByRole("button", { name: /^Actions for/ })).toBeNull()
   })
 })

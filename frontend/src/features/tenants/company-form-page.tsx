@@ -22,6 +22,9 @@ import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
 import { FormError } from "@/features/auth/auth-layout"
+import { NoAccess } from "@/features/access/no-access"
+import { PERMISSIONS } from "@/features/access/permissions"
+import { useCan } from "@/features/access/use-can"
 import { useCompanies } from "@/features/tenants/tenant-context"
 import { graphql } from "@/gql"
 import type { CreateTenantInput, UpdateTenantInput } from "@/gql/graphql"
@@ -67,6 +70,7 @@ export function CompanyFormPage() {
   const editing = id !== undefined
   const navigate = useNavigate()
   const { companies, loading, select, refresh } = useCompanies()
+  const can = useCan()
   const company = companies.find((candidate) => candidate.id === id)
   const [creation, create] = useMutation(CreateTenantMutation)
   const [update, rename] = useMutation(UpdateTenantMutation)
@@ -103,6 +107,10 @@ export function CompanyFormPage() {
   }
 
   const { fetching, error } = editing ? update : creation
+
+  if (editing && company && !can(PERMISSIONS.tenantsUpdate, id)) {
+    return <NoAccess />
+  }
 
   if (editing && !loading && !company) {
     return <p className="text-sm text-muted-foreground">Company not found.</p>

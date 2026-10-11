@@ -2,8 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import { PERMISSIONS } from "@/features/access/permissions"
 import { InvitationsPage } from "@/features/users/invitations-page"
 
+// The permissions the signed-in user holds in the selected company.
+const held = vi.hoisted(() => ({ permissions: [] as string[] }))
 const useQuery = vi.fn()
 const resend = vi.fn()
 const revoke = vi.fn()
@@ -19,7 +22,12 @@ vi.mock("urql", async (importOriginal) => ({
   ],
 }))
 vi.mock("@/features/tenants/tenant-context", () => ({
-  useCompanies: () => ({ current: { id: "tenant-1" } }),
+  useCompanies: () => ({
+    current: { id: "tenant-1" },
+    companies: [
+      { id: "tenant-1", permissions: held.permissions, active: true },
+    ],
+  }),
 }))
 vi.mock("@/features/users/invite-drawer", () => ({
   InviteDrawer: ({ open }: { open: boolean }) => (open ? <p>drawer</p> : null),
@@ -32,6 +40,7 @@ function lastVariables() {
 describe("InvitationsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    held.permissions = Object.values(PERMISSIONS)
     useQuery.mockReturnValue([
       {
         fetching: false,
@@ -148,5 +157,13 @@ describe("InvitationsPage", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Previous/ }))
     expect(lastVariables().after).toBeNull()
+  })
+
+  it("hides Send Invitation when the user cannot read roles for the picker", () => {
+    held.permissions = [PERMISSIONS.tenantsInvite]
+    render(<InvitationsPage />)
+
+    expect(screen.getByText("a@example.com")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Send Invitation" })).toBeNull()
   })
 })

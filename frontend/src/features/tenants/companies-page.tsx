@@ -1,23 +1,13 @@
-import {
-  BuildingIcon,
-  MoreHorizontalIcon,
-  PlusIcon,
-  SearchIcon,
-} from "lucide-react"
+import { BuildingIcon, PlusIcon, SearchIcon } from "lucide-react"
 import { useState } from "react"
 import { Link, useNavigate } from "react-router"
 import { useMutation } from "urql"
 
+import { ActionsMenu } from "@/components/actions-menu"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyDescription,
@@ -40,6 +30,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { toast } from "@/components/ui/toast"
+import { PERMISSIONS } from "@/features/access/permissions"
+import { useCan } from "@/features/access/use-can"
 import { FormError } from "@/features/auth/auth-layout"
 import { type Company, useCompanies } from "@/features/tenants/tenant-context"
 import { graphql } from "@/gql"
@@ -75,6 +67,7 @@ const ReactivateTenantMutation = graphql(`
 export function CompaniesPage() {
   const { companies, current, loading, select, refresh } = useCompanies()
   const navigate = useNavigate()
+  const can = useCan()
   const [search, setSearch] = useState("")
   const [toInactivate, setToInactivate] = useState<Company | null>(null)
   const [inactivation, inactivate] = useMutation(InactivateTenantMutation)
@@ -166,58 +159,54 @@ export function CompaniesPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={<Button variant="ghost" size="icon" />}
-                        aria-label={`Actions for ${company.name}`}
-                      >
-                        <MoreHorizontalIcon />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuGroup>
-                          {company.active && (
-                            <DropdownMenuItem
-                              onClick={() => {
-                                select(company.id)
-                                toast.add({
-                                  title: "Company changed",
-                                  description: `Now working in ${company.name}.`,
-                                  type: "success",
-                                })
-                              }}
-                            >
-                              Switch to this company
-                            </DropdownMenuItem>
-                          )}
+                    <ActionsMenu
+                      label={`Actions for ${company.name}`}
+                      size="icon"
+                    >
+                      {company.active && (
+                        <DropdownMenuItem
+                          onClick={() => {
+                            select(company.id)
+                            toast.add({
+                              title: "Company changed",
+                              description: `Now working in ${company.name}.`,
+                              type: "success",
+                            })
+                          }}
+                        >
+                          Switch to this company
+                        </DropdownMenuItem>
+                      )}
+                      {can(PERMISSIONS.tenantsUpdate, company.id) && (
+                        <DropdownMenuItem
+                          onClick={() =>
+                            void navigate(`/companies/${company.id}/edit`)
+                          }
+                        >
+                          Edit
+                        </DropdownMenuItem>
+                      )}
+                      {can(PERMISSIONS.tenantsInactivate, company.id) &&
+                        (company.active ? (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setToInactivate(company)}
+                          >
+                            Inactivate
+                          </DropdownMenuItem>
+                        ) : (
                           <DropdownMenuItem
                             onClick={() =>
-                              void navigate(`/companies/${company.id}/edit`)
+                              void reactivate(
+                                {},
+                                tenantContext(company.id)
+                              ).then(refresh)
                             }
                           >
-                            Edit
+                            Reactivate
                           </DropdownMenuItem>
-                          {company.active ? (
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => setToInactivate(company)}
-                            >
-                              Inactivate
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                void reactivate(
-                                  {},
-                                  tenantContext(company.id)
-                                ).then(refresh)
-                              }
-                            >
-                              Reactivate
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuGroup>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        ))}
+                    </ActionsMenu>
                   </TableCell>
                 </TableRow>
               ))}
